@@ -34,13 +34,14 @@ xplots = 4
 yplots = 7
 alphord=True
 runs=['opt2']
-ctyps=['abs'] #abs is absolute, anom is anomaly from ltmean, anom_mon is rt monthly mean
+ctyps=['anom_mon'] #abs is absolute, anom is anomaly from ltmean, anom_mon is rt monthly mean
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
 spec_col=True
-varlist=['olr']
+#varlist=['olr']
+varlist=['omega']
 thname='actual'
-#levsel=True
-levsel=False
+levsel=True
+#levsel=False
 if levsel:
     choosel=['500'] # can add a list
 else:
@@ -58,6 +59,7 @@ elif domain=='mac_wave':
     figdim=[9,9]
 agtest=False # do a test on the proportion of days in comp that agree in dir change
 manntest=True
+fdr=True
 alphaFDR=0.05
 #agtest=False # if abs then need to choose False
 perc_ag=70 # show if this % or more days agree
@@ -118,11 +120,6 @@ for r in range(len(runs)):
         # Loop sample type
         for o in range(len(wcb)):
             type = wcb[o]
-            print "Running for sample " + type
-            if type == 'cont':
-                jj = 0
-            elif type == 'mada':
-                jj = 1
 
             # Loop lags
             for lo in range(len(edays)):
@@ -362,44 +359,46 @@ for r in range(len(runs)):
                                 print uvals
                                 print pvals
 
-                                # Simple approach - Get mask over values where pval <=0.1
-                                # mask_pvals = np.zeros((nlat, nlon), dtype=np.float32)
-                                # for i in range(nlat):
-                                #     for j in range(nlon):
-                                #         if pvals[i,j] <= 0.1:
-                                #             mask_pvals[i, j] = 1
-                                #         else:
-                                #             mask_pvals[i, j] = 0
+                                if not fdr:
+                                    # Simple approach - Get mask over values where pval <=0.1
+                                    mask_pvals = np.zeros((nlat, nlon), dtype=np.float32)
+                                    for i in range(nlat):
+                                        for j in range(nlon):
+                                            if pvals[i,j] <= 0.1:
+                                                mask_pvals[i, j] = 1
+                                            else:
+                                                mask_pvals[i, j] = 0
 
+                                else:
 
-                                # Get p value that accounts for False Discovery Rate (FDR)
-                                nboxes=nlat*nlon
-                                gcnt=1
-                                plist=[]
-                                for i in range(nlat):
-                                    for j in range(nlon):
-                                        thisp=pvals[i,j]
-                                        stat=(gcnt/float(nboxes))*alphaFDR
-                                        #print thisp
-                                        #print stat
-                                        if thisp <= stat:
-                                            plist.append(thisp)
-                                        gcnt+=1
+                                    # Get p value that accounts for False Discovery Rate (FDR)
+                                    nboxes=nlat*nlon
+                                    gcnt=1
+                                    plist=[]
+                                    for i in range(nlat):
+                                        for j in range(nlon):
+                                            thisp=pvals[i,j]
+                                            stat=(gcnt/float(nboxes))*alphaFDR
+                                            #print thisp
+                                            #print stat
+                                            if thisp <= stat:
+                                                plist.append(thisp)
+                                            gcnt+=1
 
-                                plist=np.asarray(plist)
-                                print plist
-                                print len(plist)
-                                pmax=np.max(plist)
-                                print 'pFDR = '
-                                print pmax
+                                    plist=np.asarray(plist)
+                                    print plist
+                                    print len(plist)
+                                    pmax=np.max(plist)
+                                    print 'pFDR = '
+                                    print pmax
 
-                                mask_pvals = np.zeros((nlat, nlon), dtype=np.float32)
-                                for i in range(nlat):
-                                    for j in range(nlon):
-                                        if pvals[i,j] <= pmax:
-                                            mask_pvals[i, j] = 1
-                                        else:
-                                            mask_pvals[i, j] = 0
+                                    mask_pvals = np.zeros((nlat, nlon), dtype=np.float32)
+                                    for i in range(nlat):
+                                        for j in range(nlon):
+                                            if pvals[i,j] <= pmax:
+                                                mask_pvals[i, j] = 1
+                                            else:
+                                                mask_pvals[i, j] = 0
 
                             if ctyp == 'anom_mon':
 
@@ -580,6 +579,10 @@ for r in range(len(runs)):
                         cstr = ctyp
                 else:
                     cstr=ctyp
+
+                if manntest:
+                    cstr=cstr+'manntest_'+str(alphaFDR)
+
                 if lag:
                     compname = compdir + 'multi_comp_' + cstr + '.' + sample + '.' + type + '.' + globv + \
                                '.' + choosel[l] + '.' + sub + '.from_event' + from_event + '.lag_'+str(edays[lo])+'.png'
