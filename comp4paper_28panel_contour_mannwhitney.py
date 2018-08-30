@@ -61,10 +61,11 @@ agtest=False # do a test on the proportion of days in comp that agree in dir cha
 manntest=True
 fdr=True
 alphaFDR=0.05
+#alphaFDR=0.1
 #agtest=False # if abs then need to choose False
 perc_ag=70 # show if this % or more days agree
 #lag=True
-lag=False
+lag=True
 if lag:
     edays=[-3,-2,-1,0,1,2,3]
 else:

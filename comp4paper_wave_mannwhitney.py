@@ -33,7 +33,7 @@ import scipy
 
 
 ### Running options
-test_scr=True
+test_scr=False
 xplots = 4
 yplots = 6
 runs=['opt2']
@@ -42,11 +42,13 @@ spec_col=True
 domain='mac_wave' # swio or mac_wave
 agtest=False # do a test on the proportion of days in comp that agree in dir change
 perc_ag=75 # show if this % or more days agree
+
 lag=True
+
 thname='actual'
 rean='ncep' # reanalysis - ncep or era
 alphord=True
-interp=True
+interp=False
 int_res=3.5
 
 manntest=True
@@ -57,19 +59,21 @@ seas='NDJFM'
 
 # Info for vector
 varlist=['wind']
-ctyp='abs' # abs or anom_mon
+ctyp='anom_mon' # abs or anom_mon
 levsel=True
 if levsel:
     choosel=['200'] # can add a list
 else:
     choosel=['1']
 
-# Info for contour
+
 if ctyp=='abs':
     skip=2
 elif ctyp=='anom_mon':
-    skip=1 # to skip over some vectors in plotting. If want to skip none use 1
-pluscon=False
+    skip=2 # to skip over some vectors in plotting. If want to skip none use 1
+
+# Info for contour
+pluscon=True
 convar=['omega']
 ctyp_con='anom_mon'
 levcon=True
@@ -291,7 +295,7 @@ for r in range(len(runs)):
 
                     # Open sample files
                     if lag:
-                       smpfile_u = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/lag_samples/' \
+                        smpfile_u = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/lag_samples/' \
                                     + name + '.' + name2 + '.' + globv1 + '.sampled_days.' \
                                     + sample + '.' + from_event + '.' + type + '.' + thname + '.lag_'+str(edays[lo])+'.nc'
                         smpfile_v = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/lag_samples/' \
@@ -452,6 +456,159 @@ for r in range(len(runs)):
                     nlat = len(lat)
                     nlon = len(lon)
 
+
+                    if manntest:
+
+                        # Open all file
+                        if levsel:
+                            ncout_u = mync.open_multi(allfile_u, globv1, name2, \
+                                                    dataset=dset2, subs=sub, levsel=levc)
+
+                            ncout_v = mync.open_multi(allfile_v, globv2, name2, \
+                                                      dataset=dset2, subs=sub, levsel=levc)
+
+                            if variable == 'qflux':
+                                ncout_q = mync.open_multi(allfile_q, globv3, name2, \
+                                                          dataset=dset2, subs=sub, levsel=levc)
+
+                        else:
+                            ncout_u = mync.open_multi(allfile_u, globv1, name2, \
+                                                    dataset=dset2, subs=sub)
+
+                            ncout_v = mync.open_multi(allfile_v, globv2, name2, \
+                                                dataset=dset2, subs=sub)
+
+                            if variable == 'qflux':
+                                ncout_q = mync.open_multi(allfile_q, globv3, name2, \
+                                                          dataset=dset2, subs=sub)
+
+                        if pluscon:
+                            if levcon:
+                                ncout_c = mync.open_multi(allfile_c, globv_c, name3, \
+                                                          dataset=dset3, subs=sub, levsel=lev_c)
+                            else:
+                                ncout_c = mync.open_multi(allfile_c, globv_c, name3, \
+                                                          dataset=dset3, subs=sub)
+
+
+                        print '...files opened'
+                        ndim = len(ncout_u)
+                        if ndim == 5:
+                            alldata_u, time, lat, lon, alldtime = ncout_u
+                            alldata_v, time, lat, lon, alldtime = ncout_v
+
+                            if variable == 'qflux':
+                                alldata_q, time, lat, lon, alldtime = ncout_q
+
+                        elif ndim == 6:
+                            alldata_u, time, lat, lon, lev, alldtime = ncout_u
+                            alldata_u = np.squeeze(alldata_u)
+
+                            alldata_v, time, lat, lon, lev, alldtime = ncout_v
+                            alldata_v = np.squeeze(alldata_v)
+
+                            if variable == 'qflux':
+                                alldata_q, time, lat, lon, lev, alldtime = ncout_q
+                                alldata_q = np.squeeze(alldata_q)
+                        else:
+                            print 'Check number of dims in ncfile'
+                        alldtime[:, 3] = 0
+
+                        if pluscon:
+                            ndim_c = len(ncout_c)
+
+                            if ndim_c == 5:
+
+                                alldata_c, time_c, lat_c, lon_c, alldtime_c = ncout_c
+
+                            elif ndim_c == 6:
+
+                                alldata_c, time_c, lat_c, lon_c, lev_c, alldtime_c = ncout_c
+                                alldata_c = np.squeeze(alldata_c)
+
+                            alldtime_c[:, 3] = 0
+
+                        # Fix lat and lons if it spans 0
+                        if domain == 'mac_wave' or domain == 'bigtrop':
+                            print "Ammending lons around 0"
+                            for i in range(len(lon)):
+                                if lon[i] > 180:
+                                    lon[i] = lon[i] - 360
+                            ord = np.argsort(lon)
+                            lon = lon[ord]
+                            alldata_u = alldata_u[:, :, ord]
+                            alldata_v = alldata_v[:, :, ord]
+
+                            if variable == 'qflux':
+                                alldata_q = alldata_q[:, :, ord]
+
+                            if pluscon:
+                                for i in range(len(lon_c)):
+                                    if lon_c[i] > 180:
+                                        lon_c[i] = lon_c[i] - 360
+                                ord = np.argsort(lon_c)
+                                lon_c = lon_c[ord]
+                                alldata_c = alldata_c[:, :, ord]
+
+                        # Remove duplicate timesteps
+                        print 'Checking for duplicate timesteps'
+                        tmp = np.ascontiguousarray(alldtime).view(np.dtype((np.void, alldtime.dtype.itemsize * alldtime.shape[1])))
+                        _, idx = np.unique(tmp, return_index=True)
+                        alldtime = alldtime[idx]
+                        alldata_u = alldata_u[idx, :, :]
+                        alldata_v = alldata_v[idx, :, :]
+                        if variable == 'qflux':
+                            alldata_q = alldata_q[idx, :, :]
+
+                        if pluscon:
+                            print 'Checking for duplicate timesteps'
+                            tmp = np.ascontiguousarray(alldtime_c).view(
+                                np.dtype((np.void, alldtime_c.dtype.itemsize * alldtime_c.shape[1])))
+                            _, idx = np.unique(tmp, return_index=True)
+                            alldtime_c = alldtime_c[idx]
+                            alldata_c = alldata_c[idx, :, :]
+
+                        nsteps = len(alldtime)
+                        if pluscon:
+                            nsteps_c = len(alldtime_c)
+
+                        sinds = []
+                        odts = []
+                        oinds = []
+                        for dt in range(nsteps):
+                            thisdate = alldtime[dt]
+                            if thisdate[1] >= mon1 or thisdate[1] <= mon2:
+                                ix = my.ixdtimes(smpdtime, [thisdate[0]], \
+                                                 [thisdate[1]], [thisdate[2]], [0])
+                                if len(ix) == 1:
+                                    sinds.append(dt)
+                                elif len(ix) < 1:
+                                    odts.append(thisdate)
+                                    oinds.append(dt)
+
+                        odts = np.asarray(odts)
+                        oinds = np.asarray(oinds)
+                        sinds = np.asarray(sinds)
+
+                        if pluscon:
+                            sinds_c = []
+                            odts_c = []
+                            oinds_c = []
+                            for dt in range(nsteps_c):
+                                thisdate = alldtime_c[dt]
+                                if thisdate[1] >= mon1 or thisdate[1] <= mon2:
+                                    ix = my.ixdtimes(smpdtime_c, [thisdate[0]], \
+                                                     [thisdate[1]], [thisdate[2]], [0])
+                                    if len(ix) == 1:
+                                        sinds_c.append(dt)
+                                    elif len(ix) < 1:
+                                        odts_c.append(thisdate)
+                                        oinds_c.append(dt)
+
+                            odts_c = np.asarray(odts_c)
+                            oinds_c = np.asarray(oinds_c)
+                            sinds_c = np.asarray(sinds_c)
+
                     # If anom open longterm mean files
                     if ctyp == 'anom_mon':
 
@@ -536,9 +693,6 @@ for r in range(len(runs)):
                             if variable == 'qflux':
                                 meandata_q = meandata_q[:, :, ord]
 
-
-
-
                     # If anomaly for contour get the mean
                     if pluscon:
                         if ctyp_con == 'anom_mon':
@@ -572,8 +726,6 @@ for r in range(len(runs)):
                                 ord = np.argsort(lon_c)
                                 lon_c = lon_c[ord]
                                 meandata_c = meandata_c[:, :, ord]
-
-
 
                     # Interpolate data
                     if interp:
@@ -625,6 +777,45 @@ for r in range(len(runs)):
                             for st in range(nsamp):
                                 Interpolator_c = spi.interp2d(lon_c, lat_c, nonan_c[st, :, :], kind='linear')
                                 prodata_c[st, :, :] = Interpolator_c(newlon, newlat)
+
+
+                        # If manntest also interpolate the full file
+                        if manntest:
+
+                            proalldata_u = np.zeros((nsteps, nlat, nlon), dtype=np.float32)
+                            proalldata_v = np.zeros((nsteps, nlat, nlon), dtype=np.float32)
+
+                            if variable == 'qflux':
+                                proalldata_q = np.zeros((nsteps, nlat, nlon), dtype=np.float32)
+
+                            if pluscon:
+                                proalldata_c = np.zeros((nsteps_c, nlat, nlon), dtype=np.float32)
+
+                            # Get rid of nans
+                            nonan_u = np.nan_to_num(alldata_u)
+                            nonan_v = np.nan_to_num(alldata_v)
+
+                            if variable == 'qflux':
+                                nonan_q = np.nan_to_num(alldata_q)
+
+                            if pluscon:
+                                nonan_c = np.nan_to_num(alldata_c)
+
+                            for step in range(nsteps):
+                                Interpolator_u = spi.interp2d(lon, lat, nonan_u[step, :, :], kind='linear')
+                                Interpolator_v = spi.interp2d(lon, lat, nonan_v[step, :, :], kind='linear')
+
+                                proalldata_u[step, :, :] = Interpolator_u(newlon, newlat)
+                                proalldata_v[step, :, :] = Interpolator_v(newlon, newlat)
+
+                                if variable == 'qflux':
+                                    Interpolator_q = spi.interp2d(lon, lat, nonan_q[step, :, :], kind='linear')
+                                    proalldata_q[step, :, :] = Interpolator_q(newlon, newlat)
+
+                            if pluscon:
+                                for st in range(nsteps_c):
+                                    Interpolator_c = spi.interp2d(lon_c, lat_c, nonan_c[st, :, :], kind='linear')
+                                    proalldata_c[st, :, :] = Interpolator_c(newlon, newlat)
 
                         # If anomaly also interpolate the monthly means
                         if ctyp == 'anom_mon':
@@ -678,6 +869,16 @@ for r in range(len(runs)):
                         newlon = lon
                         newlat = lat
 
+                        if manntest:
+                            proalldata_u=alldata_u
+                            proalldata_v=alldata_v
+
+                            if variable=='qflux':
+                                proalldata_q=alldata_q
+
+                            if pluscon:
+                                proalldata_c=alldata_c
+
                         if ctyp=='anom_mon':
                             promeandata_u=meandata_u
                             promeandata_v=meandata_v
@@ -699,6 +900,13 @@ for r in range(len(runs)):
                         prodata_u = qu
                         prodata_v = qv
 
+                        if manntest:
+                            qu_all = proalldata_u *proalldata_q
+                            qv_all = proalldata_v *proalldata_q
+
+                            proalldata_u=qu_all
+                            proalldata_v=qv_all
+
                         if ctyp=='anom_mon':
 
                             qu_mean= promeandata_u * promeandata_q
@@ -707,13 +915,150 @@ for r in range(len(runs)):
                             promeandata_u=qu_mean
                             promeandata_v=qv_mean
 
+
+                    # Do Mann Whitney test
+                    if manntest:
+
+                        otherdata_u = proalldata_u[oinds]
+                        otherdata_v = proalldata_v[oinds]
+
+                        if variable == 'qflux':
+                            otherdata_q = proalldata_q[oinds]
+
+                        if pluscon:
+                            otherdata_c = proalldata_c[oinds_c]
+
+                        # Do mannwhitney test
+                        uvals_u = np.zeros((nlat, nlon), dtype=np.float32)
+                        pvals_u = np.zeros((nlat, nlon), dtype=np.float32)
+
+                        uvals_v = np.zeros((nlat, nlon), dtype=np.float32)
+                        pvals_v = np.zeros((nlat, nlon), dtype=np.float32)
+
+                        for i in range(nlat):
+                            for j in range(nlon):
+
+                                smpbox_u = smpdata_u[:, i, j]
+                                otherbox_u = otherdata_u[:, i, j]
+                                ustat, pvalue = scipy.stats.mannwhitneyu(smpbox_u, otherbox_u, alternative='two-sided')
+
+                                uvals_u[i, j] = ustat
+                                pvals_u[i, j] = pvalue
+
+                                smpbox_v = smpdata_v[:, i, j]
+                                otherbox_v = otherdata_v[:, i, j]
+                                ustat, pvalue = scipy.stats.mannwhitneyu(smpbox_v, otherbox_v, alternative='two-sided')
+
+                                uvals_v[i, j] = ustat
+                                pvals_v[i, j] = pvalue
+
+
+                        if pluscon:
+                            uvals_c = np.zeros((nlat, nlon), dtype=np.float32)
+                            pvals_c = np.zeros((nlat, nlon), dtype=np.float32)
+
+                            for i in range(nlat):
+                                for j in range(nlon):
+
+                                    smpbox_c = smpdata_c[:, i, j]
+                                    otherbox_c = otherdata_c[:, i, j]
+                                    ustat, pvalue = scipy.stats.mannwhitneyu(smpbox_c, otherbox_c, alternative='two-sided')
+
+                                    uvals_c[i, j] = ustat
+                                    pvals_c[i, j] = pvalue
+
+                        if not fdr:
+                            # Simple approach - Get mask over values where pval <=0.1
+                            mask_pvals = np.zeros((nlat, nlon), dtype=np.float32)
+                            for i in range(nlat):
+                                for j in range(nlon):
+                                    if pvals_u[i, j] <= 0.1 or pvals_v[i,j] <= 0.1:
+                                        mask_pvals[i, j] = 1
+                                    else:
+                                        mask_pvals[i, j] = 0
+
+                            if pluscon:
+                                mask_pvals_c=np.zeros((nlat, nlon), dtype=np.float32)
+                                for i in range(nlat):
+                                    for j in range(nlon):
+                                        if pvals_c[i, j] <= 0.1:
+                                            mask_pvals[i, j] = 1
+                                        else:
+                                            mask_pvals[i, j] = 0
+
+                        else:
+
+                            # Get p value that accounts for False Discovery Rate (FDR)
+                            nboxes = nlat * nlon
+                            gcnt = 1
+                            plist_u = []
+                            plist_v = []
+                            for i in range(nlat):
+                                for j in range(nlon):
+
+                                    # first for u
+                                    thisp = pvals_u[i, j]
+                                    stat = (gcnt / float(nboxes)) * alphaFDR
+                                    if thisp <= stat:
+                                        plist_u.append(thisp)
+
+                                    # then for v
+                                    thisp = pvals_v[i, j]
+                                    stat = (gcnt / float(nboxes)) * alphaFDR
+                                    if thisp <= stat:
+                                        plist_v.append(thisp)
+
+                                    gcnt += 1
+
+                            plist_u = np.asarray(plist_u)
+                            plist_v = np.asarray(plist_v)
+                            print plist_u
+                            print plist_v
+                            print len(plist_u)
+                            print len(plist_v)
+                            pmax_u = np.max(plist_u)
+                            pmax_v = np.max(plist_v)
+                            print 'pFDR = '
+                            print pmax_u
+                            print pmax_v
+
+                            mask_pvals = np.zeros((nlat, nlon), dtype=np.float32)
+                            for i in range(nlat):
+                                for j in range(nlon):
+                                    if pvals_u[i, j] <= pmax_u or pvals_v[i,j] <= pmax_v:
+                                        mask_pvals[i, j] = 1
+                                    else:
+                                        mask_pvals[i, j] = 0
+
+                            if pluscon:
+                                gcnt = 1
+                                plist_c=[]
+                                for i in range(nlat):
+                                    for j in range(nlon):
+
+                                        thisp = pvals_c[i, j]
+                                        stat = (gcnt / float(nboxes)) * alphaFDR
+                                        if thisp <= stat:
+                                            plist_c.append(thisp)
+                                        gcnt += 1
+
+                                plist_c = np.asarray(plist_c)
+                                pmax_c = np.max(plist_c)
+
+                                mask_pvals_c = np.zeros((nlat, nlon), dtype=np.float32)
+                                for i in range(nlat):
+                                    for j in range(nlon):
+                                        if pvals_c[i, j] <= pmax_c:
+                                            mask_pvals_c[i, j] = 1
+                                        else:
+                                            mask_pvals_c[i, j] = 0
+
                     if cnt==1:
                         m, f = pt.AfrBasemap(newlat, newlon, drawstuff=True, prj='cyl', fno=1, rsltn='l')
 
 
                     # Get lon lat grid
                     plon, plat = np.meshgrid(newlon, newlat)
-
 
                     # Get composite
                     print "Calculating composite..."
@@ -733,6 +1078,10 @@ for r in range(len(runs)):
 
                         data4plot_u = compdata_u
                         data4plot_v = compdata_v
+
+                        if manntest:
+                            data4plot_u = data4plot_u * mask_pvals
+                            data4plot_v = data4plot_v * mask_pvals
 
 
                     elif ctyp=='anom_mon':
@@ -794,9 +1143,21 @@ for r in range(len(runs)):
                             data4plot_u = zeroed_comp_u
                             data4plot_v = zeroed_comp_v
 
+                        elif manntest:
+
+                            mwzero_comp_u = anom_comp_u * mask_pvals
+                            mwzero_comp_v = anom_comp_v * mask_pvals
+
+                            data4plot_u=mwzero_comp_u
+                            data4plot_v=mwzero_comp_v
+
                     if pluscon:
                         if ctyp_con=='abs':
                             data4plot_c = compdata_c
+
+                            if manntest:
+                                data4plot_c=data4plot_c*mask_pvals_c
+
                         elif ctyp_con=='anom_mon':
 
                             anoms_c = np.zeros((int(nsamp), nlat, nlon), dtype=np.float32)
@@ -809,6 +1170,8 @@ for r in range(len(runs)):
                                 anoms_c[day, :, :] = this_anom_c
 
                             anom_comp_c = np.nanmean(anoms_c, 0)
+
+                            data4plot_c = anom_comp_c
 
                             if agtest_con:
                                 anoms_signs = np.sign(anoms_c)
@@ -828,9 +1191,10 @@ for r in range(len(runs)):
 
                                 data4plot_c= zeroed_comp_c
 
-                            else:
+                            if manntest:
 
-                                data4plot_c = anom_comp_c
+                                data4plot_c = anom_comp_c*mask_pvals_c
+
 
                     # Add skips
                     data4plot_u=data4plot_u[::skip,::skip]
@@ -847,9 +1211,10 @@ for r in range(len(runs)):
                         if globv_c == 'olr':
                             clevs = np.arange(200, 280, 10)
                             cm = plt.cm.Wistia_r
-                        else:
+                        elif globv_c == 'omega':
                             clevs = np.arange(-0.12, 0.14, 0.02)
                             cm = plt.cm.bwr
+                        else:
                             print "Need to specify cbar for this variable"
 
                         cs = m.contourf(plon, plat, data4plot_c, clevs, cmap=cm, extend='both')
@@ -943,6 +1308,10 @@ for r in range(len(runs)):
                     cstr=ctyp
             else:
                 cstr=ctyp
+
+            if manntest:
+                cstr = cstr + 'manntest_' + str(alphaFDR)
+
             if lag:
                 compname = figdir + 'multi_comp_'+cstr+'.'+sample+'.' + type + '.' + vfname + \
                           '.'+choosel[l]+'.'+sub+'.from_event'+from_event+'.'+str(int_res)+'.lag_'+str(edays[lo])+'.'+rean+'.png'
