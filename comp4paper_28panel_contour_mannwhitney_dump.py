@@ -21,7 +21,7 @@ sys.path.append(cwd+'/../MetBot')
 sys.path.append(cwd+'/../RTools')
 import PlotTools as pt
 import MetBot.dset_dict as dsetdict
-import dsets_paper_28 as dset_mp
+import dsets_paper_28_4plot as dset_mp
 import MetBot.mast_dset_dict as mast_dict
 import MetBot.dimensions_dict as dim_exdict
 import MetBot.mytools as my

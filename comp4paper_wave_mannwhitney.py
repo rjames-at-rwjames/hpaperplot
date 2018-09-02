@@ -48,8 +48,8 @@ lag=True
 thname='actual'
 rean='ncep' # reanalysis - ncep or era
 alphord=True
-interp=False
-int_res=3.5
+interp=True
+int_res=2.5
 
 manntest=True
 fdr=True
@@ -81,7 +81,7 @@ if levcon:
     chooselc=['500'] # can add a list
 else:
     chooselc=['1']
-agtest_con=True
+agtest_con=False
 perc_ag_con=75
 
 # Lag info
@@ -732,7 +732,7 @@ for r in range(len(runs)):
                         print "Interpolating data to a " + str(int_res) + " grid"
                         if name == 'cdr':  # hopefully this saves for all because it's the first model
                             minlon = lon[0]
-                            maxlon = lon[nlon - 1]
+                            maxlon = lon[nlon -1]
                             minlat = lat[0]
                             maxlat = lat[nlat - 1]
 
@@ -938,14 +938,14 @@ for r in range(len(runs)):
                         for i in range(nlat):
                             for j in range(nlon):
 
-                                smpbox_u = smpdata_u[:, i, j]
+                                smpbox_u = prodata_u[:, i, j]
                                 otherbox_u = otherdata_u[:, i, j]
                                 ustat, pvalue = scipy.stats.mannwhitneyu(smpbox_u, otherbox_u, alternative='two-sided')
 
                                 uvals_u[i, j] = ustat
                                 pvals_u[i, j] = pvalue
 
-                                smpbox_v = smpdata_v[:, i, j]
+                                smpbox_v = prodata_v[:, i, j]
                                 otherbox_v = otherdata_v[:, i, j]
                                 ustat, pvalue = scipy.stats.mannwhitneyu(smpbox_v, otherbox_v, alternative='two-sided')
 
@@ -960,7 +960,7 @@ for r in range(len(runs)):
                             for i in range(nlat):
                                 for j in range(nlon):
 
-                                    smpbox_c = smpdata_c[:, i, j]
+                                    smpbox_c = prodata_c[:, i, j]
                                     otherbox_c = otherdata_c[:, i, j]
                                     ustat, pvalue = scipy.stats.mannwhitneyu(smpbox_c, otherbox_c, alternative='two-sided')
 
