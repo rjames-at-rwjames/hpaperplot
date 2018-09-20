@@ -40,7 +40,9 @@ show_cont_sample=True
 show_mada_sample=True
 sample='blon2'
 
-group=True
+group=False
+alphord=True
+
 
 title=True
 xplots = 4
@@ -49,7 +51,7 @@ totsize=[9, 12]
 
 testyear=False  # plot based on 1 year of test data
 testfile=False
-threshtest=False # Option to run on thresholds + and - 5Wm2 as a test
+threshtest=True # Option to run on thresholds + and - 5Wm2 as a test
 monthstr = ['Aug', 'Sept', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']
 
 if group:
@@ -184,6 +186,8 @@ for t in range(nthresh):
                     thisord = int(moddct['ord']) - 2  # minus 2 because cdr already used
                     mnames[thisord] = name
 
+            elif alphord:
+                mnames = sorted(mnames_tmp, key=lambda s: s.lower())
             else:
                 mnames = mnames_tmp
         else:
@@ -729,15 +733,15 @@ for t in range(nthresh):
                         plt.scatter(mada_cXs,mada_degs,c='blue',marker="o",s=0.5,edgecolors='face')
                 plt.xlim(7.5, 100.0)
                 xlabs=[20,40,60,80]
-                plt.xticks(xlabs,fontsize=6)
+                plt.xticks(xlabs,fontsize=6,fontweight='demibold')
                 plt.ylim(-90.0, -5.0)
                 ylabs=[-90,-60,-30]
                 if group:
                     for axis in ['top', 'bottom', 'left', 'right']:
                         ax.spines[axis].set_linewidth(3)
                         ax.spines[axis].set_color(grcl)
-                plt.yticks(ylabs,fontsize=6)
-                plt.title(name+tag, fontsize=8)
+                plt.yticks(ylabs,fontsize=6, fontweight='demibold')
+                plt.title(name+tag, fontsize=8, fontweight='demibold')
 
 
             if scatter_lat_angle:

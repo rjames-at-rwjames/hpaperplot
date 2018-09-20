@@ -33,15 +33,15 @@ test_scr=False
 xplots = 4
 yplots = 7
 alphord=True
-runs=['opt2']
-ctyps=['anom_mon'] #abs is absolute, anom is anomaly from ltmean, anom_mon is rt monthly mean
+runs=['opt1']
+ctyps=['anom_seas'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
 spec_col=True
 #varlist=['olr']
-varlist=['omega']
+varlist=['olr']
 thname='actual'
-levsel=True
-#levsel=False
+#levsel=True
+levsel=False
 if levsel:
     choosel=['500'] # can add a list
 else:
@@ -65,13 +65,16 @@ alphaFDR=0.05
 #agtest=False # if abs then need to choose False
 perc_ag=70 # show if this % or more days agree
 #lag=True
-lag=True
+lag=False
 if lag:
     edays=[-3,-2,-1,0,1,2,3]
 else:
     edays=[0]
 
 seas='NDJFM'
+climyr='spec' # this is to use new climatology files which are based on only 35 years
+                # 'spec' is 35 years
+                # 'prev' is previous files - all different climatologies
 
 #drawnest=True
 drawnest=False
@@ -112,6 +115,9 @@ for r in range(len(runs)):
     elif runs[r]=='opt2':
         sample='blon2'
         from_event='all'
+    elif runs[r]=='opt3':
+        sample='blon2'
+        from_event='first'
 
     # Loop abs and anom
     for a in range(len(ctyps)):
@@ -212,6 +218,15 @@ for r in range(len(runs)):
                                     print 'variable ' + globv + ' has unclear yearname for ' + name2
                             else:
                                 ys = moddct['fullrun']
+
+                        # Years for clim and manntest
+                        if climyr == 'spec':
+                            ysclim = moddct['yrfname']
+                        else:
+                            ysclim = ys
+                        year1 = float(ysclim[0:4])
+                        year2 = float(ysclim[5:9])
+
 
 
                         # Open sample file
@@ -317,20 +332,25 @@ for r in range(len(runs)):
                                 sinds=[]
                                 odts=[]
                                 oinds=[]
+                                print year1
+                                print year2
                                 for dt in range(nsteps):
                                     thisdate=alldtime[dt]
-                                    if thisdate[1] >=mon1 or thisdate[1] <=mon2:
-                                        ix = my.ixdtimes(smpdtime, [thisdate[0]], \
-                                                         [thisdate[1]], [thisdate[2]], [0])
-                                        if len(ix) == 1:
-                                            sinds.append(dt)
-                                        elif len(ix) < 1:
-                                            odts.append(thisdate)
-                                            oinds.append(dt)
+                                    if thisdate[0] >=year1 and thisdate[0] <=year2:
+                                        if thisdate[1] >=mon1 or thisdate[1] <=mon2:
+                                            ix = my.ixdtimes(smpdtime, [thisdate[0]], \
+                                                             [thisdate[1]], [thisdate[2]], [0])
+                                            if len(ix) == 1:
+                                                sinds.append(dt)
+                                            elif len(ix) < 1:
+                                                odts.append(thisdate)
+                                                oinds.append(dt)
 
                                 odts = np.asarray(odts)
                                 oinds = np.asarray(oinds)
                                 sinds = np.asarray(sinds)
+
+                                print oinds
 
                                 otherdata=alldata[oinds]
 
@@ -401,11 +421,11 @@ for r in range(len(runs)):
                                             else:
                                                 mask_pvals[i, j] = 0
 
-                            if ctyp == 'anom_mon':
+                            if ctyp == 'anom_mon' or ctyp == 'anom_seas':
 
                                 # Open ltmonmean file
                                 meanfile = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
-                                           + name2 + '.' + globv + '.mon.mean.' + ys + '.nc'
+                                           + name2 + '.' + globv + '.mon.mean.' + ysclim + '.nc'
 
                                 if os.path.exists(meanfile):
 
@@ -480,7 +500,20 @@ for r in range(len(runs)):
                                 anom_comp=np.nanmean(anoms,0)
                                 data4plot = anom_comp
 
-                            if ctyp=='anom_mon':
+                            elif ctyp=='anom_seas':
+
+                                # get seasonal mean
+                                thesemons=np.zeros((nmon,nlat,nlon), dtype=np.float32)
+                                for zz in range(len(mons)):
+                                    thesemons[zz, :, :] = meandata[mons[zz] - 1, :, :]
+                                seasmean = np.nanmean(thesemons, 0)
+
+                                anoms = np.asarray([smpdata[x, :, :] - seasmean for x in range(len(smpdata[:, 0, 0]))])
+
+                                anom_comp=np.nanmean(anoms,0)
+                                data4plot = anom_comp
+
+                            if ctyp=='anom_mon' or ctyp=='anom_seas':
                                 if agtest:
 
                                     print "Calculating number of days which agree..."
@@ -509,7 +542,7 @@ for r in range(len(runs)):
                                         clevs = np.arange(200, 280, 10)
                                         #cm = plt.cm.gray_r
                                         cm = plt.cm.Wistia_r
-                                    elif ctyp=='anom_mon':
+                                    elif ctyp=='anom_mon' or ctyp=='anom_seas':
                                         #clevs = np.arange(-75,90,15)
                                         clevs= np.arange(-40,50,10)
                                         cm = plt.cm.BrBG_r
@@ -518,7 +551,7 @@ for r in range(len(runs)):
                                         clevs = np.arange(0, 16, 2)
                                         #cm = plt.cm.YlGnBu
                                         cm = plt.cm.magma
-                                    elif ctyp=='anom_mon':
+                                    elif ctyp=='anom_mon' or ctyp=='anom_seas':
                                         clevs = np.arange(-12,14, 2)
                                         cm = plt.cm.bwr_r
                                 elif globv == 'omega':
@@ -533,7 +566,7 @@ for r in range(len(runs)):
                                 cs = m.contourf(plon, plat, data4plot, clevs, cmap=cm, extend='both')
                             else:
                                 cs = m.contourf(plon, plat, data4plot, extend='both')
-                            if ctyp=='anom_mon':
+                            if ctyp=='anom_mon' or ctyp=='anom_seas':
                                 if agtest:
                                     hatch = m.contourf(plon, plat, mask_zeros, levels=[-1.0, 0.0, 1.0], hatches=["", '.'], alpha=0)
                             if manntest:
@@ -573,7 +606,7 @@ for r in range(len(runs)):
                 my.ytickfonts(fontsize=12.)
 
                 # Save
-                if ctyp == 'anom_mon':
+                if ctyp == 'anom_mon' or ctyp=='anom_seas':
                     if agtest:
                         cstr=ctyp+'_agtest_'+str(perc_ag)
                     else:
@@ -583,6 +616,9 @@ for r in range(len(runs)):
 
                 if manntest:
                     cstr=cstr+'manntest_'+str(alphaFDR)
+
+                if climyr:
+                    cstr=cstr+'_35years_'
 
                 if lag:
                     compname = compdir + 'multi_comp_' + cstr + '.' + sample + '.' + type + '.' + globv + \

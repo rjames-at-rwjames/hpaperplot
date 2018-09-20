@@ -1,9 +1,6 @@
-# To plot all CMIP5 models in multi-panel plot
+# To plot CMIP5 models in multi-panel plot
 # This one is for wind at 200 and omega 500
-# so only 24 mods because of missing data
-# but now using composites based on subselecting metbot flagged events by centroid and angle
-# but now reading in netcdf files to speed things up
-#
+# for a few example models with lags
 #
 # Aiming at variables which I want to plot as a vector
 # ctyp=abs
@@ -35,15 +32,13 @@ import scipy
 ### Running options
 test_scr=False
 xplots = 4
-yplots = 6
+yplots = 4
 runs=['opt3']
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
 spec_col=True
-domain='swio' # swio or mac_wave
+domain='mac_wave' # swio or mac_wave
 agtest=False # do a test on the proportion of days in comp that agree in dir change
 perc_ag=75 # show if this % or more days agree
-
-lag=False
 
 thname='actual'
 rean='era' # reanalysis - ncep or era
@@ -61,7 +56,7 @@ climyr='spec' # this is to use new climatology files which are based on only 35 
                 # 'prev' is previous files - all different climatologies
 # Info for vector
 varlist=['wind']
-ctyp='abs' #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
+ctyp='anom_seas' #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
 levsel=True
 if levsel:
     choosel=['200'] # can add a list
@@ -77,7 +72,7 @@ elif ctyp=='anom_mon' or ctyp=='anom_seas':
 # Info for contour
 pluscon=True
 convar=['omega']
-ctyp_con='abs'
+ctyp_con='anom_seas'
 levcon=True
 if levcon:
     chooselc=['500'] # can add a list
@@ -87,10 +82,8 @@ agtest_con=False
 perc_ag_con=75
 
 # Lag info
-if lag:
-    edays=[-3,-2,-1,0,1,2,3] # lags only currently working with u and v
-else:
-    edays=[0]
+edays=[-2,-1,0,1] # lags only currently working with u and v
+enames=['DAY -2','DAY -1','DAY 0','DAY +1']
 
 # Info on domains
 if domain=='polar':
@@ -102,16 +95,14 @@ elif domain=='nglob':
     sub='bigtrop'
 elif domain=='mac_wave':
     sub='SASA'
-    figdim = [9, 7]
+    figdim = [9, 4]
 
 ### Get directories
 bkdir=cwd+"/../../CTdata/"
 thisdir=bkdir+"/hpaperplot/"
 botdir=bkdir+"metbot_multi_dset/"
 
-figdir=thisdir+"comp4paper_wave/"
-if lag:
-    figdir=thisdir+"comp4paper_wave_lags/"
+figdir=thisdir+"comp4paper_wave_lag2101/"
 my.mkdir_p(figdir)
 
 if seas == 'NDJFM':
@@ -157,214 +148,436 @@ for r in range(len(runs)):
         type = wcb[o]
         print "Running for sample " + type
 
-        # Loop lags
-        for lo in range(len(edays)):
-            print "Running with a lag of "+str(edays[lo])
+        # Set up plot
+        print "Setting up plot..."
+        g, ax = plt.subplots(figsize=figdim)
 
-            # Set up plot
-            print "Setting up plot..."
-            g, ax = plt.subplots(figsize=figdim)
+        cnt = 1
+        colcnt = 1
 
-            cnt = 1
+        ### Dsets
+        dsets='all'
+        dsetnames=['noaa','cmip5']
+        ndset=len(dsetnames)
+        ndstr=str(ndset)
 
-            ### Dsets
-            dsets='all'
-            dsetnames=['noaa','cmip5']
-            ndset=len(dsetnames)
-            ndstr=str(ndset)
+        if test_scr:
+            ndset = 1
 
-            if test_scr:
-                ndset = 1
+        print "Looping datasets"
+        for d in range(ndset):
+            dset=dsetnames[d]
+            dcnt=str(d+1)
+            print 'Running on '+dset
+            print 'This is dset '+dcnt+' of '+ndstr+' in list'
 
-            print "Looping datasets"
-            for d in range(ndset):
-                dset=dsetnames[d]
-                dcnt=str(d+1)
-                print 'Running on '+dset
-                print 'This is dset '+dcnt+' of '+ndstr+' in list'
+            if dset != 'cmip5':
+                levc = int(choosel[l])
+                mnames_tmp = ['cdr']
+            else:
+                levc = int(choosel[l]) * 100
+                mnames_tmp = ['ACCESS1-3','CSIRO-Mk3-6-0','IPSL-CM5A-LR']
 
-                if dset != 'cmip5': levc = int(choosel[l])
-                else: levc = int(choosel[l]) * 100
 
-                if pluscon:
-                    if dset != 'cmip5':
-                        lev_c = int(chooselc[l])
-                    else:
-                        lev_c = int(chooselc[l]) * 100
+            if pluscon:
+                if dset != 'cmip5':
+                    lev_c = int(chooselc[l])
+                else:
+                    lev_c = int(chooselc[l]) * 100
 
-                ### Models
-                mods = 'all'
-                nmod = len(dset_mp.dset_deets[dset])
-                mnames_tmp = list(dset_mp.dset_deets[dset])
-                nmstr = str(nmod)
+            ### Models
+            nmod = len(mnames_tmp)
+            nmstr = str(nmod)
 
-                if dset == 'cmip5':
-                    if alphord:
-                        mnames = sorted(mnames_tmp, key=lambda s: s.lower())
-                    else:
-                        mnames = mnames_tmp
+            if dset == 'cmip5':
+                if alphord:
+                    mnames = sorted(mnames_tmp, key=lambda s: s.lower())
                 else:
                     mnames = mnames_tmp
+            else:
+                mnames = mnames_tmp
 
-                if test_scr:
-                    nmod=1
+            if test_scr:
+                nmod=1
 
 
-                for mo in range(nmod):
-                    name = mnames[mo]
-                    mcnt = str(mo + 1)
-                    print 'Running on ' + name
-                    print 'This is model ' + mcnt + ' of ' + nmstr + ' in list'
+            for mo in range(nmod):
+                name = mnames[mo]
+                mcnt = str(mo + 1)
+                print 'Running on ' + name
+                print 'This is model ' + mcnt + ' of ' + nmstr + ' in list'
 
-                    # Switch variable if NOAA
-                    if dset == 'noaa':
-                        if rean=='ncep':
-                            ds4noaa = 'ncep'
-                            mod4noaa = 'ncep2'
-                        elif rean=='era':
-                            ds4noaa = 'era'
-                            mod4noaa = 'erai'
-                        dset2 = ds4noaa
-                        name2 = mod4noaa
-                    else:
-                        dset2 = dset
-                        name2 = name
+                # Switch variable if NOAA
+                if dset == 'noaa':
+                    if rean=='ncep':
+                        ds4noaa = 'ncep'
+                        mod4noaa = 'ncep2'
+                    elif rean=='era':
+                        ds4noaa = 'era'
+                        mod4noaa = 'erai'
+                    dset2 = ds4noaa
+                    name2 = mod4noaa
+                else:
+                    dset2 = dset
+                    name2 = name
 
-                    if pluscon:
-                        if dset=='noaa':
-                            if globv_c == 'olr':
-                                dset3 = dset
-                                name3 = name
-                            else:
-                                if rean == 'ncep':
-                                    ds4noaa = 'ncep'
-                                    mod4noaa = 'ncep2'
-                                elif rean == 'era':
-                                    ds4noaa = 'era'
-                                    mod4noaa = 'erai'
-                                dset3 = ds4noaa
-                                name3 = mod4noaa
-                        else:
+                if pluscon:
+                    if dset=='noaa':
+                        if globv_c == 'olr':
                             dset3 = dset
                             name3 = name
-
-                    # Get info
-                    moddct = dsetdict.dset_deets[dset2][name2]
-                    mastdct = mast_dict.mast_dset_deets[dset2]
-
-                    if pluscon:
-                        condct = dsetdict.dset_deets[dset3][name3]
-                        conmastdct=mast_dict.mast_dset_deets[dset3]
-
-                    vnamedict_u = globv1 + 'name'
-                    vnamedict_v = globv2 + 'name'
-                    if variable == 'qflux':
-                        vnamedict_q = globv3 + 'name'
-
-                    if pluscon:
-                        vnamedict_c = globv_c + 'name'
-
-
-                    varstr_u = mastdct[vnamedict_u]
-                    varstr_v = mastdct[vnamedict_v]
-                    if variable == 'qflux':
-                        varstr_q = mastdct[vnamedict_q]
-
-                    if pluscon:
-                        varstr_c = conmastdct[vnamedict_c]
-
-                    ys=moddct['fullrun']
-                    if pluscon:
-                        if globv_c != 'omega' and globv_c != 'q' and globv_c != 'gpth':
-                            ys_c = condct['yrfname']
                         else:
-                            if name3 == "MIROC5":
-                                if globv_c == 'q':
-                                    ys_c = condct['fullrun']
-                                elif globv_c == 'omega' or globv_c == 'gpth':
-                                    ys_c = '1950_2009'
-                                else:
-                                    print 'variable ' + globv_c + ' has unclear yearname for ' + name3
-                            else:
+                            if rean == 'ncep':
+                                ds4noaa = 'ncep'
+                                mod4noaa = 'ncep2'
+                            elif rean == 'era':
+                                ds4noaa = 'era'
+                                mod4noaa = 'erai'
+                            dset3 = ds4noaa
+                            name3 = mod4noaa
+                    else:
+                        dset3 = dset
+                        name3 = name
+
+                # Get info
+                moddct = dsetdict.dset_deets[dset2][name2]
+                mastdct = mast_dict.mast_dset_deets[dset2]
+
+                if pluscon:
+                    condct = dsetdict.dset_deets[dset3][name3]
+                    conmastdct=mast_dict.mast_dset_deets[dset3]
+
+                vnamedict_u = globv1 + 'name'
+                vnamedict_v = globv2 + 'name'
+                if variable == 'qflux':
+                    vnamedict_q = globv3 + 'name'
+
+                if pluscon:
+                    vnamedict_c = globv_c + 'name'
+
+
+                varstr_u = mastdct[vnamedict_u]
+                varstr_v = mastdct[vnamedict_v]
+                if variable == 'qflux':
+                    varstr_q = mastdct[vnamedict_q]
+
+                if pluscon:
+                    varstr_c = conmastdct[vnamedict_c]
+
+                ys=moddct['fullrun']
+                if pluscon:
+                    if globv_c != 'omega' and globv_c != 'q' and globv_c != 'gpth':
+                        ys_c = condct['yrfname']
+                    else:
+                        if name3 == "MIROC5":
+                            if globv_c == 'q':
                                 ys_c = condct['fullrun']
-
-
-                    # Years for clim and manntest
-                    if climyr == 'spec':
-                        ysclim = moddct['yrfname']
-                    else:
-                        ysclim = ys
-                    year1 = float(ysclim[0:4])
-                    year2 = float(ysclim[5:9])
-
-                    if pluscon:
-                        if climyr == 'spec':
-                            ysclim_c = condct['yrfname']
+                            elif globv_c == 'omega' or globv_c == 'gpth':
+                                ys_c = '1950_2009'
+                            else:
+                                print 'variable ' + globv_c + ' has unclear yearname for ' + name3
                         else:
-                            ysclim_c = ys_c
-                        year1_c = float(ysclim_c[0:4])
-                        year2_c = float(ysclim_c[5:9])
+                            ys_c = condct['fullrun']
 
 
-                    dimdict = dim_exdict.dim_deets[globv1][dset2]
-                    latname = dimdict[1]
-                    lonname = dimdict[2]
+                # Years for clim and manntest
+                if climyr == 'spec':
+                    ysclim = moddct['yrfname']
+                else:
+                    ysclim = ys
+                year1 = float(ysclim[0:4])
+                year2 = float(ysclim[5:9])
 
-                    if pluscon:
-                        dimdict_c = dim_exdict.dim_deets[globv_c][dset3]
-                        latname_c = dimdict_c[1]
-                        lonname_c = dimdict_c[2]
-
-                    # Open sample files
-                    if lag:
-                        smpfile_u = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/lag_samples/' \
-                                    + name + '.' + name2 + '.' + globv1 + '.sampled_days.' \
-                                    + sample + '.' + from_event + '.' + type + '.' + thname + '.lag_'+str(edays[lo])+'.nc'
-                        smpfile_v = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/lag_samples/' \
-                                    + name + '.' + name2 + '.' + globv2 + '.sampled_days.' \
-                                    + sample + '.' + from_event + '.' + type + '.' + thname + '.lag_'+str(edays[lo])+'.nc'
+                if pluscon:
+                    if climyr == 'spec':
+                        ysclim_c = condct['yrfname']
                     else:
-                        smpfile_u = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 +'/' \
-                                    +name+'.'+name2+'.' + globv1 + '.sampled_days.'\
-                                    + sample + '.'+from_event+'.'+type+'.'+thname+'.nc'
-                        smpfile_v = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 +'/' \
-                                    +name+'.'+name2+'.' + globv2 + '.sampled_days.'\
-                                    + sample + '.'+from_event+'.'+type+'.'+thname+'.nc'
+                        ysclim_c = ys_c
+                    year1_c = float(ysclim_c[0:4])
+                    year2_c = float(ysclim_c[5:9])
+
+
+                dimdict = dim_exdict.dim_deets[globv1][dset2]
+                latname = dimdict[1]
+                lonname = dimdict[2]
+
+                if pluscon:
+                    dimdict_c = dim_exdict.dim_deets[globv_c][dset3]
+                    latname_c = dimdict_c[1]
+                    lonname_c = dimdict_c[2]
+
+                if manntest:
+                    # Open all file
+                    allfile_u = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + \
+                                  '.' + globv1 + '.day.mean.' + ys + '.nc'
+
+                    allfile_v = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + \
+                                  '.' + globv2 + '.day.mean.' + ys + '.nc'
 
                     if variable == 'qflux':
-                        if lag:
-                            smpfile_q = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/lag_samples/' \
-                                        + name + '.' + name2 + '.' + globv3 + '.sampled_days.' \
-                                        + sample + '.' + from_event + '.' + type + '.' + thname + '.lag_'+str(edays[lo])+'.nc'
-                        else:
-                            smpfile_q = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 +'/' \
-                                +name+'.'+name2+'.' + globv3 + '.sampled_days.'\
-                                + sample + '.'+from_event+'.'+type+'.'+thname+'.nc'
+                        allfile_q = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + \
+                                    '.' + globv3 + '.day.mean.' + ys + '.nc'
+
                     if pluscon:
-                        if lag:
-                            smpfile_c = bkdir + 'metbot_multi_dset/' + dset3 + '/' + name3 + '/lag_samples/' \
-                                        + name + '.' + name3 + '.' + globv_c + '.sampled_days.' \
-                                        + sample + '.' + from_event + '.' + type + '.' + thname + '.lag_'+str(edays[lo])+'.nc'
-                        else:
-                            smpfile_c = bkdir + 'metbot_multi_dset/' + dset3 + '/' + name3 +'/' \
-                                +name+'.'+name3+'.' + globv_c + '.sampled_days.'\
-                                + sample + '.'+from_event+'.'+type+'.'+thname+'.nc'
+                        allfile_c = bkdir + 'metbot_multi_dset/' + dset3 + '/' + name3 + \
+                                    '.' + globv_c + '.day.mean.' + ys_c + '.nc'
 
-                    if manntest:
-                        # Open all file
-                        allfile_u = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + \
-                                      '.' + globv1 + '.day.mean.' + ys + '.nc'
+                    print 'Opening files for whole period:'
+                    print allfile_u
+                    print allfile_v
+                    if variable == 'qflux':
+                        print allfile_q
+                    if pluscon:
+                        print allfile_c
 
-                        allfile_v = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + \
-                                      '.' + globv2 + '.day.mean.' + ys + '.nc'
+                    # Open all file
+                    if levsel:
+                        ncout_u = mync.open_multi(allfile_u, globv1, name2,\
+                                                  dataset=dset2, subs=sub, levsel=levc)
+
+                        ncout_v = mync.open_multi(allfile_v, globv2, name2, \
+                                                  dataset=dset2, subs=sub, levsel=levc)
 
                         if variable == 'qflux':
-                            allfile_q = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + \
-                                        '.' + globv3 + '.day.mean.' + ys + '.nc'
+                            ncout_q = mync.open_multi(allfile_q, globv3, name2, \
+                                                      dataset=dset2, subs=sub, levsel=levc)
+
+                    else:
+                        ncout_u = mync.open_multi(allfile_u, globv1, name2, \
+                                                  dataset=dset2, subs=sub)
+
+                        ncout_v = mync.open_multi(allfile_v, globv2, name2, \
+                                                  dataset=dset2, subs=sub)
+
+                        if variable == 'qflux':
+                            ncout_q = mync.open_multi(allfile_q, globv3, name2, \
+                                                      dataset=dset2, subs=sub)
+
+                    if pluscon:
+                        if levcon:
+                            ncout_c = mync.open_multi(allfile_c, globv_c, name3, \
+                                                      dataset=dset3, subs=sub, levsel=lev_c)
+                        else:
+                            ncout_c = mync.open_multi(allfile_c, globv_c, name3, \
+                                                      dataset=dset3, subs=sub)
+
+                    print '...files opened'
+                    ndim = len(ncout_u)
+                    if ndim == 5:
+                        alldata_u, time, lat, lon, alldtime = ncout_u
+                        alldata_v, time, lat, lon, alldtime = ncout_v
+
+                        if variable == 'qflux':
+                            alldata_q, time, lat, lon, alldtime = ncout_q
+
+                    elif ndim == 6:
+                        alldata_u, time, lat, lon, lev, alldtime = ncout_u
+                        alldata_u = np.squeeze(alldata_u)
+
+                        alldata_v, time, lat, lon, lev, alldtime = ncout_v
+                        alldata_v = np.squeeze(alldata_v)
+
+                        if variable == 'qflux':
+                            alldata_q, time, lat, lon, lev, alldtime = ncout_q
+                            alldata_q = np.squeeze(alldata_q)
+                    else:
+                        print 'Check number of dims in ncfile'
+                    alldtime[:, 3] = 0
+
+                    if pluscon:
+                        ndim_c = len(ncout_c)
+
+                        if ndim_c == 5:
+
+                            alldata_c, time_c, lat_c, lon_c, alldtime_c = ncout_c
+
+                        elif ndim_c == 6:
+
+                            alldata_c, time_c, lat_c, lon_c, lev_c, alldtime_c = ncout_c
+                            alldata_c = np.squeeze(alldata_c)
+
+                        alldtime_c[:, 3] = 0
+
+                    # Fix lat and lons if it spans 0
+                    if domain == 'mac_wave' or domain == 'bigtrop':
+                        print "Ammending lons around 0"
+                        for i in range(len(lon)):
+                            if lon[i] > 180:
+                                lon[i] = lon[i] - 360
+                        ord = np.argsort(lon)
+                        lon = lon[ord]
+                        alldata_u = alldata_u[:, :, ord]
+                        alldata_v = alldata_v[:, :, ord]
+
+                        if variable == 'qflux':
+                            alldata_q = alldata_q[:, :, ord]
 
                         if pluscon:
-                            allfile_c = bkdir + 'metbot_multi_dset/' + dset3 + '/' + name3 + \
-                                        '.' + globv_c + '.day.mean.' + ys_c + '.nc'
+                            for i in range(len(lon_c)):
+                                if lon_c[i] > 180:
+                                    lon_c[i] = lon_c[i] - 360
+                            ord = np.argsort(lon_c)
+                            lon_c = lon_c[ord]
+                            alldata_c = alldata_c[:, :, ord]
+
+                    # Remove duplicate timesteps
+                    print 'Checking for duplicate timesteps'
+                    tmp = np.ascontiguousarray(alldtime).view(
+                        np.dtype((np.void, alldtime.dtype.itemsize * alldtime.shape[1])))
+                    _, idx = np.unique(tmp, return_index=True)
+                    alldtime = alldtime[idx]
+                    alldata_u = alldata_u[idx, :, :]
+                    alldata_v = alldata_v[idx, :, :]
+                    if variable == 'qflux':
+                        alldata_q = alldata_q[idx, :, :]
+
+                    if pluscon:
+                        print 'Checking for duplicate timesteps'
+                        tmp = np.ascontiguousarray(alldtime_c).view(
+                            np.dtype((np.void, alldtime_c.dtype.itemsize * alldtime_c.shape[1])))
+                        _, idx = np.unique(tmp, return_index=True)
+                        alldtime_c = alldtime_c[idx]
+                        alldata_c = alldata_c[idx, :, :]
+
+                    nsteps = len(alldtime)
+                    if pluscon:
+                        nsteps_c = len(alldtime_c)
+
+                # If anom open longterm mean files
+                if ctyp == 'anom_mon' or ctyp == 'anom_seas':
+
+                    meanfile_u = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
+                                 + name2 + '.' + globv1 + '.mon.mean.' + ysclim + '.nc'
+
+                    meanfile_v = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
+                                 + name2 + '.' + globv2 + '.mon.mean.' + ysclim + '.nc'
+
+                    if variable == 'qflux':
+                        meanfile_q = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
+                                     + name2 + '.' + globv3 + '.mon.mean.' + ysclim + '.nc'
+
+                    print 'Opening ' + meanfile_u
+                    print 'and corresponding file: ' + meanfile_v
+                    if variable == 'qflux':
+                        print 'and q file:' + meanfile_q
+
+                    if levsel:
+                        ncout_u = mync.open_multi(meanfile_u, globv1, name2, \
+                                                  dataset=dset2, subs=sub, levsel=levc)
+                        ncout_v = mync.open_multi(meanfile_v, globv2, name2, \
+                                                  dataset=dset2, subs=sub, levsel=levc)
+
+                        if variable == 'qflux':
+                            ncout_q = mync.open_multi(meanfile_q, globv3, name2, \
+                                                      dataset=dset2, subs=sub, levsel=levc)
+
+                    else:
+                        ncout_u = mync.open_multi(meanfile_u, globv1, name2, \
+                                                  dataset=dset2, subs=sub)
+                        ncout_v = mync.open_multi(meanfile_v, globv2, name2, \
+                                                  dataset=dset2, subs=sub)
+
+                        if variable == 'qflux':
+                            ncout_q = mync.open_multi(meanfile_q, globv3, name2, \
+                                                      dataset=dset2, subs=sub)
+
+                    ndim = len(ncout_u)
+
+                    if ndim == 5:
+
+                        meandata_u, time, lat, lon, dtime = ncout_u
+                        meandata_v, time, lat, lon, dtime = ncout_v
+
+                        if variable == 'qflux':
+                            meandata_q, time, lat, lon, meandtime = ncout_q
+
+                    elif ndim == 6:
+
+                        meandata_u, time, lat, lon, lev, dtime = ncout_u
+                        meandata_u = np.squeeze(meandata_u)
+
+                        meandata_v, time, lat, lon, lev, dtime = ncout_v
+                        meandata_v = np.squeeze(meandata_v)
+
+                        if variable == 'qflux':
+                            meandata_q, time, lat, lon, lev, dtime = ncout_q
+                            meandata_q = np.squeeze(meandata_q)
+
+                    else:
+                        print 'Check number of dims in ncfile'
+
+                    dtime[:, 3] = 0
+
+                    # Fix lat and lons if it spans 0
+                    if domain == 'mac_wave' or domain == 'bigtrop':
+                        print "Ammending lons around 0"
+                        for i in range(len(lon)):
+                            if lon[i] > 180:
+                                lon[i] = lon[i] - 360
+                        ord = np.argsort(lon)
+                        lon = lon[ord]
+                        meandata_u = meandata_u[:, :, ord]
+                        meandata_v = meandata_v[:, :, ord]
+
+                        if variable == 'qflux':
+                            meandata_q = meandata_q[:, :, ord]
+
+                # If anomaly for contour get the mean
+                if pluscon:
+                    if ctyp_con == 'anom_mon' or ctyp_con == 'anom_seas':
+                        meanfile_c = bkdir + 'metbot_multi_dset/' + dset3 + '/' + name3 + '/' \
+                                     + name3 + '.' + globv_c + '.mon.mean.' + ysclim_c + '.nc'
+
+                        if levcon:
+                            ncout_c = mync.open_multi(meanfile_c, globv_c, name3, \
+                                                      dataset=dset3, subs=sub, levsel=lev_c)
+                        else:
+                            ncout_c = mync.open_multi(meanfile_c, globv_c, name3, \
+                                                      dataset=dset3, subs=sub)
+                        ndim_c = len(ncout_c)
+
+                        if ndim_c == 5:
+
+                            meandata_c, time_c, lat_c, lon_c, dtime_c = ncout_c
+
+                        elif ndim_c == 6:
+
+                            meandata_c, time_c, lat_c, lon_c, lev_c, dtime_c = ncout_c
+                            meandata_c = np.squeeze(meandata_c)
+
+                        dtime_c[:, 3] = 0
+
+                        if domain == 'mac_wave' or domain == 'bigtrop':
+                            print "Ammending lons around 0"
+                            for i in range(len(lon_c)):
+                                if lon_c[i] > 180:
+                                    lon_c[i] = lon_c[i] - 360
+                            ord = np.argsort(lon_c)
+                            lon_c = lon_c[ord]
+                            meandata_c = meandata_c[:, :, ord]
+
+                rowcnt=1
+
+                # Loop lags
+                for lo in range(len(edays)):
+                    print "Running with a lag of " + str(edays[lo])
+
+                    # Open sample files
+                    smpfile_u = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/lag_samples/' \
+                                    + name + '.' + name2 + '.' + globv1 + '.sampled_days.' \
+                                    + sample + '.' + from_event + '.' + type + '.' + thname + '.lag_'+str(edays[lo])+'.nc'
+                    smpfile_v = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/lag_samples/' \
+                                    + name + '.' + name2 + '.' + globv2 + '.sampled_days.' \
+                                    + sample + '.' + from_event + '.' + type + '.' + thname + '.lag_'+str(edays[lo])+'.nc'
+
+                    if variable == 'qflux':
+                        smpfile_q = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/lag_samples/' \
+                                    + name + '.' + name2 + '.' + globv3 + '.sampled_days.' \
+                                    + sample + '.' + from_event + '.' + type + '.' + thname + '.lag_'+str(edays[lo])+'.nc'
+                    if pluscon:
+                        smpfile_c = bkdir + 'metbot_multi_dset/' + dset3 + '/' + name3 + '/lag_samples/' \
+                                    + name + '.' + name3 + '.' + globv_c + '.sampled_days.' \
+                                    + sample + '.' + from_event + '.' + type + '.' + thname + '.lag_'+str(edays[lo])+'.nc'
 
                     print 'Opening ' + smpfile_u
                     print 'and corresponding file: ' + smpfile_v
@@ -372,14 +585,6 @@ for r in range(len(runs)):
                         print 'and q file:' + smpfile_q
                     if pluscon:
                         print 'and file for '+globv_c +' ' +smpfile_c
-                    if manntest:
-                        print 'and files for whole period:'
-                        print allfile_u
-                        print allfile_v
-                        if variable =='qflux':
-                            print allfile_q
-                        if pluscon:
-                            print allfile_c
 
                     if levsel:
                         ncout_u = mync.open_multi(smpfile_u, globv1, name2, \
@@ -481,119 +686,6 @@ for r in range(len(runs)):
 
                     if manntest:
 
-                        # Open all file
-                        if levsel:
-                            ncout_u = mync.open_multi(allfile_u, globv1, name2, \
-                                                    dataset=dset2, subs=sub, levsel=levc)
-
-                            ncout_v = mync.open_multi(allfile_v, globv2, name2, \
-                                                      dataset=dset2, subs=sub, levsel=levc)
-
-                            if variable == 'qflux':
-                                ncout_q = mync.open_multi(allfile_q, globv3, name2, \
-                                                          dataset=dset2, subs=sub, levsel=levc)
-
-                        else:
-                            ncout_u = mync.open_multi(allfile_u, globv1, name2, \
-                                                    dataset=dset2, subs=sub)
-
-                            ncout_v = mync.open_multi(allfile_v, globv2, name2, \
-                                                dataset=dset2, subs=sub)
-
-                            if variable == 'qflux':
-                                ncout_q = mync.open_multi(allfile_q, globv3, name2, \
-                                                          dataset=dset2, subs=sub)
-
-                        if pluscon:
-                            if levcon:
-                                ncout_c = mync.open_multi(allfile_c, globv_c, name3, \
-                                                          dataset=dset3, subs=sub, levsel=lev_c)
-                            else:
-                                ncout_c = mync.open_multi(allfile_c, globv_c, name3, \
-                                                          dataset=dset3, subs=sub)
-
-
-                        print '...files opened'
-                        ndim = len(ncout_u)
-                        if ndim == 5:
-                            alldata_u, time, lat, lon, alldtime = ncout_u
-                            alldata_v, time, lat, lon, alldtime = ncout_v
-
-                            if variable == 'qflux':
-                                alldata_q, time, lat, lon, alldtime = ncout_q
-
-                        elif ndim == 6:
-                            alldata_u, time, lat, lon, lev, alldtime = ncout_u
-                            alldata_u = np.squeeze(alldata_u)
-
-                            alldata_v, time, lat, lon, lev, alldtime = ncout_v
-                            alldata_v = np.squeeze(alldata_v)
-
-                            if variable == 'qflux':
-                                alldata_q, time, lat, lon, lev, alldtime = ncout_q
-                                alldata_q = np.squeeze(alldata_q)
-                        else:
-                            print 'Check number of dims in ncfile'
-                        alldtime[:, 3] = 0
-
-                        if pluscon:
-                            ndim_c = len(ncout_c)
-
-                            if ndim_c == 5:
-
-                                alldata_c, time_c, lat_c, lon_c, alldtime_c = ncout_c
-
-                            elif ndim_c == 6:
-
-                                alldata_c, time_c, lat_c, lon_c, lev_c, alldtime_c = ncout_c
-                                alldata_c = np.squeeze(alldata_c)
-
-                            alldtime_c[:, 3] = 0
-
-                        # Fix lat and lons if it spans 0
-                        if domain == 'mac_wave' or domain == 'bigtrop':
-                            print "Ammending lons around 0"
-                            for i in range(len(lon)):
-                                if lon[i] > 180:
-                                    lon[i] = lon[i] - 360
-                            ord = np.argsort(lon)
-                            lon = lon[ord]
-                            alldata_u = alldata_u[:, :, ord]
-                            alldata_v = alldata_v[:, :, ord]
-
-                            if variable == 'qflux':
-                                alldata_q = alldata_q[:, :, ord]
-
-                            if pluscon:
-                                for i in range(len(lon_c)):
-                                    if lon_c[i] > 180:
-                                        lon_c[i] = lon_c[i] - 360
-                                ord = np.argsort(lon_c)
-                                lon_c = lon_c[ord]
-                                alldata_c = alldata_c[:, :, ord]
-
-                        # Remove duplicate timesteps
-                        print 'Checking for duplicate timesteps'
-                        tmp = np.ascontiguousarray(alldtime).view(np.dtype((np.void, alldtime.dtype.itemsize * alldtime.shape[1])))
-                        _, idx = np.unique(tmp, return_index=True)
-                        alldtime = alldtime[idx]
-                        alldata_u = alldata_u[idx, :, :]
-                        alldata_v = alldata_v[idx, :, :]
-                        if variable == 'qflux':
-                            alldata_q = alldata_q[idx, :, :]
-
-                        if pluscon:
-                            print 'Checking for duplicate timesteps'
-                            tmp = np.ascontiguousarray(alldtime_c).view(
-                                np.dtype((np.void, alldtime_c.dtype.itemsize * alldtime_c.shape[1])))
-                            _, idx = np.unique(tmp, return_index=True)
-                            alldtime_c = alldtime_c[idx]
-                            alldata_c = alldata_c[idx, :, :]
-
-                        nsteps = len(alldtime)
-                        if pluscon:
-                            nsteps_c = len(alldtime_c)
-
                         sinds = []
                         odts = []
                         oinds = []
@@ -633,123 +725,6 @@ for r in range(len(runs)):
                             oinds_c = np.asarray(oinds_c)
                             sinds_c = np.asarray(sinds_c)
 
-                    # If anom open longterm mean files
-                    if ctyp == 'anom_mon' or ctyp == 'anom_seas':
-
-                        meanfile_u=bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
-                                       + name2 + '.' + globv1 + '.mon.mean.' + ysclim + '.nc'
-
-                        meanfile_v=bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
-                                       + name2 + '.' + globv2 + '.mon.mean.' + ysclim + '.nc'
-
-                        if variable == 'qflux':
-                            meanfile_q = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
-                                         + name2 + '.' + globv3 + '.mon.mean.' + ysclim + '.nc'
-
-
-
-                        print 'Opening ' + meanfile_u
-                        print 'and corresponding file: ' + meanfile_v
-                        if variable == 'qflux':
-                            print 'and q file:' + meanfile_q
-
-                        if levsel:
-                            ncout_u = mync.open_multi(meanfile_u, globv1, name2, \
-                                                       dataset=dset2, subs=sub, levsel=levc)
-                            ncout_v = mync.open_multi(meanfile_v, globv2, name2, \
-                                                       dataset=dset2, subs=sub, levsel=levc)
-
-                            if variable == 'qflux':
-                                 ncout_q = mync.open_multi(meanfile_q, globv3, name2, \
-                                                           dataset=dset2, subs=sub, levsel=levc)
-
-                        else:
-                            ncout_u = mync.open_multi(meanfile_u, globv1, name2, \
-                                                       dataset=dset2, subs=sub)
-                            ncout_v = mync.open_multi(meanfile_v, globv2, name2, \
-                                                       dataset=dset2, subs=sub)
-
-                            if variable == 'qflux':
-                                ncout_q = mync.open_multi(meanfile_q, globv3, name2, \
-                                                           dataset=dset2, subs=sub)
-
-
-                        ndim = len(ncout_u)
-
-                        if ndim == 5:
-
-                            meandata_u, time, lat, lon, dtime = ncout_u
-                            meandata_v, time, lat, lon, dtime = ncout_v
-
-                            if variable == 'qflux':
-                                meandata_q, time, lat, lon, meandtime = ncout_q
-
-                        elif ndim == 6:
-
-                             meandata_u, time, lat, lon, lev, dtime = ncout_u
-                             meandata_u = np.squeeze(meandata_u)
-
-                             meandata_v, time, lat, lon, lev, dtime = ncout_v
-                             meandata_v = np.squeeze(meandata_v)
-
-                             if variable == 'qflux':
-                                 meandata_q, time, lat, lon, lev, dtime = ncout_q
-                                 meandata_q = np.squeeze(meandata_q)
-
-                        else:
-                             print 'Check number of dims in ncfile'
-
-                        dtime[:, 3] = 0
-
-
-
-                        # Fix lat and lons if it spans 0
-                        if domain == 'mac_wave' or domain == 'bigtrop':
-                            print "Ammending lons around 0"
-                            for i in range(len(lon)):
-                                if lon[i] > 180:
-                                    lon[i] = lon[i] - 360
-                            ord = np.argsort(lon)
-                            lon = lon[ord]
-                            meandata_u = meandata_u[:, :, ord]
-                            meandata_v = meandata_v[:, :, ord]
-
-                            if variable == 'qflux':
-                                meandata_q = meandata_q[:, :, ord]
-
-                    # If anomaly for contour get the mean
-                    if pluscon:
-                        if ctyp_con == 'anom_mon' or ctyp_con=='anom_seas':
-                            meanfile_c = bkdir + 'metbot_multi_dset/' + dset3 + '/' + name3 + '/' \
-                                         + name3 + '.' + globv_c + '.mon.mean.' + ysclim_c + '.nc'
-
-                            if levcon:
-                                ncout_c = mync.open_multi(meanfile_c, globv_c, name3, \
-                                                          dataset=dset3, subs=sub, levsel=lev_c)
-                            else:
-                                ncout_c = mync.open_multi(meanfile_c, globv_c, name3, \
-                                                          dataset=dset3, subs=sub)
-                            ndim_c = len(ncout_c)
-
-                            if ndim_c == 5:
-
-                                meandata_c, time_c, lat_c, lon_c, dtime_c = ncout_c
-
-                            elif ndim_c == 6:
-
-                                meandata_c, time_c, lat_c, lon_c, lev_c, dtime_c = ncout_c
-                                meandata_c = np.squeeze(meandata_c)
-
-                            dtime_c[:, 3] = 0
-
-                            if domain == 'mac_wave' or domain == 'bigtrop':
-                                print "Ammending lons around 0"
-                                for i in range(len(lon_c)):
-                                    if lon_c[i] > 180:
-                                        lon_c[i] = lon_c[i] - 360
-                                ord = np.argsort(lon_c)
-                                lon_c = lon_c[ord]
-                                meandata_c = meandata_c[:, :, ord]
 
                     # Interpolate data
                     if interp:
@@ -1271,7 +1246,14 @@ for r in range(len(runs)):
 
                     # Plot
                     print "Plotting for model "+name2
-                    plt.subplot(yplots,xplots,cnt)
+
+                    subloc=colcnt+((rowcnt-1)*xplots)
+
+                    print colcnt
+                    print rowcnt
+                    print subloc
+
+                    plt.subplot(yplots,xplots,subloc)
 
                     # Plot contours if pluscon
                     if pluscon:
@@ -1281,9 +1263,7 @@ for r in range(len(runs)):
                         elif globv_c == 'omega':
                             clevs = np.arange(-0.12, 0.14, 0.02)
                             cm = plt.cm.bwr
-                            #clevs = np.arange(-0.15, 0.18, 0.03)
                             #cm = plt.cm.BrBG_r
-                            #cm = plt.cm.PiYG_r
                         else:
                             print "Need to specify cbar for this variable"
 
@@ -1299,9 +1279,9 @@ for r in range(len(runs)):
                         elif choosel[l] == '200':
                             if ctyp=='abs':
                                 if domain=='swio':
-                                    wind_sc = 400
-                                    usc = 30
-                                    lab = '30m/s'
+                                    wind_sc = 600
+                                    usc = 40
+                                    lab = '40m/s'
                                 elif domain=='mac_wave':
                                     wind_sc = 600
                                     usc = 40
@@ -1341,16 +1321,19 @@ for r in range(len(runs)):
                     if ctyp=='anom_mon' or ctyp=='anom_seas':
                         q = plt.quiver(newlon, newlat, data4plot_u, data4plot_v, scale=wind_sc, width=0.005)
                     elif ctyp=='abs':
-                        q = plt.quiver(newlon, newlat, data4plot_u, data4plot_v, scale=wind_sc, width=0.005)
+                        q = plt.quiver(newlon, newlat, data4plot_u, data4plot_v, scale=wind_sc)
                     if cnt==1:
                         plt.quiverkey(q, X=0.9, Y=1.1, U=usc, label=lab, labelpos='W', fontproperties={'size': 'xx-small'})
 
-                    if dset=='noaa':
-                        pltname=name+'/'+name2
-                    else:
-                        pltname=name
-                    plt.title(pltname, fontsize=8,fontweight='demibold')
+                    if rowcnt==1:
+                        if dset=='noaa':
+                            pltname=name+'/'+name2
+                        else:
+                            pltname=name
+                        plt.title(pltname, fontsize=8,fontweight='demibold')
 
+                    if colcnt==1:
+                        plt.text(-55,-25,str(enames[lo]),horizontalalignment='center',verticalalignment='center',rotation=90.0,fontsize=8,fontweight='demibold')
 
                     # Redraw map
                     m.drawcountries()
@@ -1358,43 +1341,44 @@ for r in range(len(runs)):
 
                     cnt += 1
 
+                    rowcnt +=1
 
-            print "Finalising plot..."
-            plt.subplots_adjust(left=0.05,right=0.9,top=0.95,bottom=0.02,wspace=0.1,hspace=0.2)
-
-            if pluscon:
-                # Plot cbar
-                axcl = g.add_axes([0.91, 0.15, 0.01, 0.6])
-                cbar = plt.colorbar(cs, cax=axcl)
-                my.ytickfonts(fontsize=12.)
+                colcnt +=1
 
 
+        print "Finalising plot..."
+        plt.subplots_adjust(left=0.05,right=0.9,top=0.95,bottom=0.02,wspace=0.1,hspace=0.1)
 
-            if pluscon:
-                vfname=variable+'_'+globv_c
-            else:
-                vfname=variable
+        if pluscon:
+            # Plot cbar
+            axcl = g.add_axes([0.91, 0.15, 0.01, 0.6])
+            cbar = plt.colorbar(cs, cax=axcl)
+            my.ytickfonts(fontsize=12.)
 
-            # Save
-            if ctyp=='anom_mon' or ctyp=='anom_seas':
-                if agtest:
-                    cstr=ctyp+'_agtest_'+str(perc_ag)
-                else:
-                    cstr=ctyp
+
+
+        if pluscon:
+            vfname=variable+'_'+globv_c
+        else:
+            vfname=variable
+
+        # Save
+        if ctyp=='anom_mon' or ctyp=='anom_seas':
+            if agtest:
+                cstr=ctyp+'_agtest_'+str(perc_ag)
             else:
                 cstr=ctyp
+        else:
+            cstr=ctyp
 
-            if manntest:
-                cstr = cstr + 'manntest_' + str(alphaFDR)
+        if manntest:
+            cstr = cstr + 'manntest_' + str(alphaFDR)
 
-            if climyr=='spec':
-                cstr = cstr + '_35years_'
+        if climyr=='spec':
+            cstr = cstr + '_35years_'
 
-            if lag:
-                compname = figdir + 'multi_comp_'+cstr+'.'+sample+'.' + type + '.' + vfname + \
-                          '.'+choosel[l]+'.'+sub+'.from_event'+from_event+'.'+str(int_res)+'.lag_'+str(edays[lo])+'.'+rean+'.skip'+str(skip)+'.png'
-            else:
-                compname = figdir + 'multi_comp_'+cstr+'.'+sample+'.' + type + '.' + vfname + \
+        compname = figdir + 'multi_comp_'+cstr+'.'+sample+'.' + type + '.' + vfname + \
                       '.'+choosel[l]+'.'+sub+'.from_event'+from_event+'.'+str(int_res)+'.'+rean+'.skip'+str(skip)+'.png'
-            plt.savefig(compname, dpi=150)
-            plt.close()
+
+        plt.savefig(compname, dpi=150)
+        plt.close()

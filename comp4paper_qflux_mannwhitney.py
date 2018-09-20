@@ -1,6 +1,6 @@
 # To plot all CMIP5 models in multi-panel plot
-# This one is for wind at 200 and omega 500
-# so only 24 mods because of missing data
+# This one is for qflux and q at 850
+# so only 27 mods because of missing data
 # but now using composites based on subselecting metbot flagged events by centroid and angle
 # but now reading in netcdf files to speed things up
 #
@@ -22,7 +22,7 @@ cwd=os.getcwd()
 sys.path.append(cwd)
 sys.path.append(cwd+'/../MetBot')
 sys.path.append(cwd+'/../RTools')
-import dsets_paper_omega as dset_mp
+import dsets_paper_qflux as dset_mp
 import MetBot.dset_dict as dsetdict
 import MetBot.mast_dset_dict as mast_dict
 import MetBot.dimensions_dict as dim_exdict
@@ -35,7 +35,7 @@ import scipy
 ### Running options
 test_scr=False
 xplots = 4
-yplots = 6
+yplots = 7
 runs=['opt3']
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
 spec_col=True
@@ -60,11 +60,11 @@ climyr='spec' # this is to use new climatology files which are based on only 35 
                 # 'spec' is 35 years
                 # 'prev' is previous files - all different climatologies
 # Info for vector
-varlist=['wind']
-ctyp='abs' #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
+varlist=['qflux']
+ctyp='anom_mon' #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
 levsel=True
 if levsel:
-    choosel=['200'] # can add a list
+    choosel=['850'] # can add a list
 else:
     choosel=['1']
 
@@ -76,11 +76,11 @@ elif ctyp=='anom_mon' or ctyp=='anom_seas':
 
 # Info for contour
 pluscon=True
-convar=['omega']
-ctyp_con='abs'
+convar=['q']
+ctyp_con='anom_mon'
 levcon=True
 if levcon:
-    chooselc=['500'] # can add a list
+    chooselc=['850'] # can add a list
 else:
     chooselc=['1']
 agtest_con=False
@@ -97,7 +97,7 @@ if domain=='polar':
     sub='SH'
 elif domain=='swio':
     sub='SA'
-    figdim=[9,9]
+    figdim=[9,11]
 elif domain=='nglob':
     sub='bigtrop'
 elif domain=='mac_wave':
@@ -109,9 +109,9 @@ bkdir=cwd+"/../../CTdata/"
 thisdir=bkdir+"/hpaperplot/"
 botdir=bkdir+"metbot_multi_dset/"
 
-figdir=thisdir+"comp4paper_wave/"
+figdir=thisdir+"comp4paper_qflux/"
 if lag:
-    figdir=thisdir+"comp4paper_wave_lags/"
+    figdir=thisdir+"comp4paper_qflux_lags/"
 my.mkdir_p(figdir)
 
 if seas == 'NDJFM':
@@ -1281,9 +1281,10 @@ for r in range(len(runs)):
                         elif globv_c == 'omega':
                             clevs = np.arange(-0.12, 0.14, 0.02)
                             cm = plt.cm.bwr
-                            #clevs = np.arange(-0.15, 0.18, 0.03)
-                            #cm = plt.cm.BrBG_r
-                            #cm = plt.cm.PiYG_r
+                        elif globv_c=='q':
+                            clevs = np.arange(-0.002, 0.00225, 0.00025)
+                            #cm = plt.cm.bwr_r
+                            cm = plt.cm.BrBG
                         else:
                             print "Need to specify cbar for this variable"
 
@@ -1299,9 +1300,9 @@ for r in range(len(runs)):
                         elif choosel[l] == '200':
                             if ctyp=='abs':
                                 if domain=='swio':
-                                    wind_sc = 400
-                                    usc = 30
-                                    lab = '30m/s'
+                                    wind_sc = 600
+                                    usc = 40
+                                    lab = '40m/s'
                                 elif domain=='mac_wave':
                                     wind_sc = 600
                                     usc = 40
@@ -1330,9 +1331,9 @@ for r in range(len(runs)):
                     elif variable == 'qflux':
                         if choosel[l] == '850':
                             if ctyp == 'abs':
-                                wind_sc = 0.75
-                                usc = 0.1
-                                lab = '0.1 kg/kg/ms'
+                                wind_sc = 0.6
+                                usc = 0.075
+                                lab = '0.075 kg/kg/ms'
                             elif ctyp == 'anom_mon' or ctyp=='anom_seas':
                                 wind_sc = 0.4
                                 usc = 0.05
@@ -1341,16 +1342,15 @@ for r in range(len(runs)):
                     if ctyp=='anom_mon' or ctyp=='anom_seas':
                         q = plt.quiver(newlon, newlat, data4plot_u, data4plot_v, scale=wind_sc, width=0.005)
                     elif ctyp=='abs':
-                        q = plt.quiver(newlon, newlat, data4plot_u, data4plot_v, scale=wind_sc, width=0.005)
+                        q = plt.quiver(newlon, newlat, data4plot_u, data4plot_v, scale=wind_sc)
                     if cnt==1:
-                        plt.quiverkey(q, X=0.9, Y=1.1, U=usc, label=lab, labelpos='W', fontproperties={'size': 'xx-small'})
+                        plt.quiverkey(q, X=1.2, Y=1.1, U=usc, label=lab, labelpos='W', fontproperties={'size': 'xx-small'})
 
-                    if dset=='noaa':
-                        pltname=name+'/'+name2
+                    if dset == 'noaa':
+                        pltname = name + '/' + name2
                     else:
-                        pltname=name
-                    plt.title(pltname, fontsize=8,fontweight='demibold')
-
+                        pltname = name
+                    plt.title(pltname, fontsize=8, fontweight='demibold')
 
                     # Redraw map
                     m.drawcountries()
@@ -1390,11 +1390,13 @@ for r in range(len(runs)):
             if climyr=='spec':
                 cstr = cstr + '_35years_'
 
+
             if lag:
                 compname = figdir + 'multi_comp_'+cstr+'.'+sample+'.' + type + '.' + vfname + \
                           '.'+choosel[l]+'.'+sub+'.from_event'+from_event+'.'+str(int_res)+'.lag_'+str(edays[lo])+'.'+rean+'.skip'+str(skip)+'.png'
             else:
                 compname = figdir + 'multi_comp_'+cstr+'.'+sample+'.' + type + '.' + vfname + \
                       '.'+choosel[l]+'.'+sub+'.from_event'+from_event+'.'+str(int_res)+'.'+rean+'.skip'+str(skip)+'.png'
+
             plt.savefig(compname, dpi=150)
             plt.close()
