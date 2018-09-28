@@ -51,8 +51,9 @@ clon1=7.5
 clon2=55.0
 
 ### Running options
-threshtest=True
+threshtest=TF
 weightlats=True
+maskpurple=True
 
 ### Get directories
 bkdir=cwd+"/../../CTdata/"
@@ -164,7 +165,6 @@ for t in range(nthresh):
                 grcl = grcls[thisgroup - 1]
                 grmr=grmrs[grcnt[thisgroup-1]]
                 grcnt[thisgroup-1]+=1
-
 
             ### Get index
             ind=0
@@ -500,6 +500,11 @@ for t in range(nthresh):
                 xvals[cnt] = ma.masked
                 yvals[cnt] = ma.masked
 
+            if maskpurple:
+                if thisgroup==5:
+                    xvals[cnt] = ma.masked
+                    yvals[cnt] = ma.masked
+
             cnt += 1
             modnames.append(name)
 
@@ -546,6 +551,8 @@ for t in range(nthresh):
     elif aspect == 'count':
         if relative:
             figsuf = figsuf + 'relative'
+    if maskpurple:
+        figsuf=figsuf+'_maskpurple'
 
     scatterfig=figdir+'/scatter.'+index+'.seas_'+seas+'.TTT'+aspect+'.'\
                +str(clon1)+'_to_'+str(clon2)+'.'+figsuf+'.countwith_'+wh_count+'.thresh_'+thnames[t]+'.png'
