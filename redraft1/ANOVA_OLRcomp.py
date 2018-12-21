@@ -20,7 +20,6 @@ sys.path.append(cwd+'/../../RTools')
 sys.path.append(cwd+'/../')
 import PlotTools as pt
 import MetBot.dset_dict as dsetdict
-import dsets_paper_28_4plot as dset_mp
 import MetBot.mast_dset_dict as mast_dict
 import MetBot.dimensions_dict as dim_exdict
 import MetBot.mytools as my
@@ -31,10 +30,10 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 
 ### Running options
-res=2.0
-
 first_test=False
 test_scr=False
+remove_outliers=False
+
 runs=['opt1']
 ctyps=['anom_seas'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
@@ -47,28 +46,43 @@ if levsel:
 else:
     choosel=['1']
 domain='swio'
+lag=False
+seas='NDJFM'
+climyr='spec' # this is to use new climatology files which are based on only 35 years
+                # 'spec' is 35 years
+                # 'prev' is previous files - all different climatologies
+
+## Interpolation options
+interp='file' # 'file' (to import interpolated file) or 'here' to do it in this script
+if interp=='file':
+    fileres='360x180'
+    res=1.0
+elif interp=='here':
+    res=1.0
+
+## Info for options
 if domain=='polar':
     sub='SH'
 elif domain=='swio':
     sub='SA'
     figdim=[9,7]
-    dom = ((-60.0, 0.0), (0.0, 100.0))
+    dom = ((-59.5,-0.5), (0.0, 100.0))
 elif domain=='nglob':
     sub='bigtrop'
 elif domain=='mac_wave':
     sub='SASA'
     figdim=[9,9]
 
-lag=False
+if remove_outliers:
+    import dsets_nooutlier as dset_mp
+else:
+    import dsets_paper_28_4plot as dset_mp
+
 if lag:
     edays=[-3,-2,-1,0,1,2,3]
 else:
     edays=[0]
 
-seas='NDJFM'
-climyr='spec' # this is to use new climatology files which are based on only 35 years
-                # 'spec' is 35 years
-                # 'prev' is previous files - all different climatologies
 
 ### Get directories
 bkdir=cwd+"/../../../CTdata/"
@@ -202,16 +216,16 @@ for r in range(len(runs)):
 
 
                             # Open sample file
+                            inpath=bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/'
+                            filend=''
                             if lag:
-                                smpfile = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/lag_samples/' \
-                                      + name + '.' + name2 + '.' + globv + '.sampled_days.' \
-                                      + sample + '.' + from_event + '.' + type + '.' + thname + '.lag_'+str(edays[lo])+'.nc'
-                            else:
-                                smpfile=bkdir+'metbot_multi_dset/'+dset2+'/'+name2+'/'\
-                                    +name+'.'+name2+'.'+globv+'.sampled_days.'\
-                                    +sample+'.'+from_event+'.'+type+'.'+thname+'.nc'
+                                filend=filend+'.lag_'+str(edays[lo])
+                                inpath=inpath+'lag_samples/'
+                            if interp=='file':
+                                filend=filend+'.remap_'+fileres
 
-
+                            smpfile=inpath+name+'.'+name2+'.'+globv+'.sampled_days.'\
+                                +sample+'.'+from_event+'.'+type+'.'+thname+filend+'.nc'
 
                             print 'Opening '+smpfile
 
@@ -270,9 +284,13 @@ for r in range(len(runs)):
                                     year1 = float(ysclim[0:4])
                                     year2 = float(ysclim[5:9])
 
+                                    filend2=''
+                                    if interp == 'file':
+                                        filend2 = filend2 + '.remap_' + fileres
+
                                     # Open ltmonmean file
                                     meanfile = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
-                                               + name2 + '.' + globv + '.mon.mean.' + ysclim + '.nc'
+                                               + name2 + '.' + globv + '.mon.mean.' + ysclim + filend2+'.nc'
 
                                     if os.path.exists(meanfile):
 
@@ -333,15 +351,22 @@ for r in range(len(runs)):
 
 
                                 # Interpolate data
-                                print "Interpolating data to a " + str(res) + " grid"
-                                prodata = np.zeros((nsamp, nlat, nlon), dtype=np.float32)
+                                if interp=='here':
+                                    print "Interpolating data to a " + str(res) + " grid"
+                                    prodata = np.zeros((nsamp, nlat, nlon), dtype=np.float32)
 
-                                # Get rid of nans
-                                nonan = np.nan_to_num(chosedata)
+                                    # Get rid of nans
+                                    nonan = np.nan_to_num(chosedata)
 
-                                for step in range(nsamp):
-                                    Interpolator = spi.interp2d(lon, lat, nonan[step, :, :], kind='linear')
-                                    prodata[step,:,:] = Interpolator(lons,lats)
+                                    for step in range(nsamp):
+                                        Interpolator = spi.interp2d(lon, lat, nonan[step, :, :], kind='linear')
+                                        prodata[step,:,:] = Interpolator(lons,lats)
+
+                                else:
+                                    prodata=chosedata
+                                    if dset=='cmip5':
+                                        lat=lat[::-1]
+                                        prodata=prodata[:,::-1,:]
 
                                 # Check smpdata
                                 #print 'Checking data'
@@ -389,45 +414,59 @@ for r in range(len(runs)):
                 cs = m.contourf(plon, plat, f_grid)
                 m.drawcountries()
                 m.drawcoastlines()
+                plt.title('ANOVA: F value')
+
                 cax = make_axes_locatable(ax2).append_axes("right", size="5%", pad="2%")
                 cb = plt.colorbar(cs, cax=cax)
-                plt.title('F stat')
+
 
 
                 # Plot pvalue for fstat
                 print 'Plotting ANOVA p value'
                 ax2 = plt.subplot(yplots,xplots,2)
-                cs = m.contourf(plon, plat, pf_grid)
+                clevs = np.arange(0,0.1,0.01)
+                cs = m.contourf(plon, plat, pf_grid, clevs, extend='both')
                 m.drawcountries()
                 m.drawcoastlines()
+                plt.title('ANOVA: p value')
+
                 cax = make_axes_locatable(ax2).append_axes("right", size="5%", pad="2%")
                 cb = plt.colorbar(cs, cax=cax)
-                plt.title('pval for F stat')
 
 
-                # Plot k stat
+                # Plot H stat
                 print 'Plotting Kruskal statistic'
                 ax2 = plt.subplot(yplots,xplots,3)
                 cs = m.contourf(plon, plat, k_grid)
                 m.drawcountries()
                 m.drawcoastlines()
+                plt.title('Kruskal-Wallis: H value')
+
                 cax = make_axes_locatable(ax2).append_axes("right", size="5%", pad="2%")
                 cb = plt.colorbar(cs, cax=cax)
-                plt.title('K stat')
 
 
 
                 # Plot fstat
-                print 'Plotting p value for K statistic'
+                print 'Plotting p value for H statistic'
                 ax2 = plt.subplot(yplots,xplots,4)
-                cs = m.contourf(plon, plat, pk_grid)
+                clevs = np.arange(0,0.1,0.01)
+                cs = m.contourf(plon, plat, pk_grid, clevs, extend='both')
                 m.drawcountries()
                 m.drawcoastlines()
+                plt.title('Kruskal-Wallis: p value')
+
                 cax = make_axes_locatable(ax2).append_axes("right", size="5%", pad="2%")
                 cb = plt.colorbar(cs, cax=cax)
-                plt.title('pval for K stat')
 
 
-                compname= compdir + 'statsplot_test.'+ctyp+'.png'
+                if test_scr:
+                    mods='testmodels'
+                elif remove_outliers:
+                    mods='nooutliers'
+                else:
+                    mods='allmod'
+
+                compname= compdir + 'statsplot_test.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.png'
                 plt.savefig(compname, dpi=150)
                 plt.close()
