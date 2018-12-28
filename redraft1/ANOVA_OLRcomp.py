@@ -32,7 +32,8 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 ### Running options
 first_test=False
 test_scr=False
-remove_outliers=False
+remove_outliers=True
+howmany='many' # 'two' or 'many'
 
 runs=['opt1']
 ctyps=['anom_seas'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
@@ -74,7 +75,10 @@ elif domain=='mac_wave':
     figdim=[9,9]
 
 if remove_outliers:
-    import dsets_nooutlier as dset_mp
+    if howmany=='two':
+        import dsets_nooutlier as dset_mp
+    elif howmany=='many':
+        import dsets_bestfit as dset_mp
 else:
     import dsets_paper_28_4plot as dset_mp
 
@@ -463,7 +467,7 @@ for r in range(len(runs)):
                 if test_scr:
                     mods='testmodels'
                 elif remove_outliers:
-                    mods='nooutliers'
+                    mods='nooutliers_'+howmany
                 else:
                     mods='allmod'
 

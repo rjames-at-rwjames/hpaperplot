@@ -21,8 +21,9 @@ for name in $(more $dset_dict | gawk '{print $1}');do
 
     #Loop variables
     echo 'Looping variables'
-    for var in olr;do
+    #for var in olr;do
     #for var in olr pr omega gpth u v q T;do
+    for var in pr omega gpth u v q T;do
     #for var in olr pr;do
 
         echo 'Running on'

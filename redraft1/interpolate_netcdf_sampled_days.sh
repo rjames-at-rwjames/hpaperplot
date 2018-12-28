@@ -37,8 +37,9 @@ for wcb in cont;do
 
         #Loop variables
         echo 'Looping variables'
-        for var in olr;do
+        #for var in olr;do
         #for var in olr pr omega gpth u v q T;do # doesn't work well for TRMM because short timeperiod
+        for var in omega gpth u v q T pr;do # doesn't work well for TRMM because short timeperiod
     	#for var in u v;do
 
             echo "Running on"
