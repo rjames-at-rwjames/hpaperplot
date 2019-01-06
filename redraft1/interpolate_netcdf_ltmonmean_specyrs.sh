@@ -14,16 +14,17 @@ res=360x180
 # Loop datasets - by name because they are original
 echo 'Looping datasets and models'
 #for name in MIROC-ESM;do
-for name in $(more $dset_dict | gawk '{print $1}');do
+#for name in $(more $dset_dict | gawk '{print $1}');do
+for name in cdr;do
     echo $name
     dset=$(grep -w $name $dset_dict  | gawk '{print $2}' | head -1)
     echo $dset
 
     #Loop variables
     echo 'Looping variables'
-    #for var in olr;do
+    for var in olr;do
     #for var in olr pr omega gpth u v q T;do
-    for var in pr omega gpth u v q T;do
+    #for var in pr omega gpth u v q T;do
     #for var in olr pr;do
 
         echo 'Running on'

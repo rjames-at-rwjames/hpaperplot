@@ -29,17 +29,17 @@ for wcb in cont;do
     # Loop datasets - by name because they are original
     echo 'Looping datasets and models'
 
-#    for name in cdr;do
-    for name in $(more $dset_dict | gawk '{print $1}');do
+    for name in cdr;do
+#    for name in $(more $dset_dict | gawk '{print $1}');do
         echo $name
         dset=$(grep -w $name $dset_dict  | gawk '{print $2}' | head -1)
         echo $dset
 
         #Loop variables
         echo 'Looping variables'
-        #for var in olr;do
+        for var in olr;do
         #for var in olr pr omega gpth u v q T;do # doesn't work well for TRMM because short timeperiod
-        for var in omega gpth u v q T pr;do # doesn't work well for TRMM because short timeperiod
+#        for var in omega gpth u v q T pr;do # doesn't work well for TRMM because short timeperiod
     	#for var in u v;do
 
             echo "Running on"
