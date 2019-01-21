@@ -11,8 +11,9 @@ from mpl_toolkits.basemap import cm
 
 cwd=os.getcwd()
 sys.path.append(cwd)
-sys.path.append(cwd+'/../MetBot')
-sys.path.append(cwd+'/../RTools')
+sys.path.append(cwd+'/../../MetBot')
+sys.path.append(cwd+'/../../RTools')
+sys.path.append(cwd+'/../')
 import PlotTools as pt
 import MetBot.dset_dict as dsetdict
 import dsets_paper_28_4plot as dset_mp
@@ -24,7 +25,7 @@ import MetBot.MetBlobs as blb
 import scipy
 
 ### Running options
-test_scr=True
+test_scr=False
 xplots = 4
 yplots = 7
 alphord=True
@@ -56,6 +57,8 @@ if lag:
 else:
     edays=[0]
 
+fdr=False
+
 ## Interpolation options
 interp='file' # 'file' (to import interpolated file) or 'here' to do it in this script
 if interp=='file':
@@ -70,7 +73,7 @@ climyr='spec' # this is to use new climatology files which are based on only 35 
                 # 'prev' is previous files - all different climatologies
 
 ### Get directories
-bkdir=cwd+"/../../CTdata/"
+bkdir=cwd+"/../../../CTdata/"
 thisdir=bkdir+"/hpaperplot/"
 botdir=bkdir+"metbot_multi_dset/"
 
@@ -118,7 +121,7 @@ for r in range(len(runs)):
             # First open the file for CDR
             print 'Opening reference data'
             dset='noaa'
-            model='cdr'
+            name='cdr'
             ysclim = '1979_2013'
             levc = int(choosel[l]) * 100
 
@@ -338,9 +341,13 @@ for r in range(len(runs)):
                         nlat = len(lat)
                         nlon = len(lon)
 
+                        filend2 = ''
+                        if interp == 'file':
+                            filend2 = filend2 + '.remap_' + fileres
+
                         # Open ltmonmean file
                         meanfile = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
-                                   + name2 + '.' + globv + '.mon.mean.' + ysclim + '.nc'
+                                   + name2 + '.' + globv + '.mon.mean.' + ysclim + filend2 + '.nc'
 
                         print 'Opening climatology file for model'
                         print 'Opening ' + meanfile
@@ -388,132 +395,84 @@ for r in range(len(runs)):
 
                         anoms = np.asarray([smpdata[x, :, :] - seasmean for x in range(len(smpdata[:, 0, 0]))])
 
-                        if dset == 'cmip5':
-                            lat = lat[::-1]
-                            anoms = anoms[:, ::-1, :]
+                        # if dset == 'cmip5':
+                        #     lat = lat[::-1]
+                        #     anoms = anoms[:, ::-1, :]
 
                         # Test difference between this model and reference
                         print 'Starting test between '+name2+' and reference'
 
+                        uvals = np.zeros((nlat, nlon), dtype=np.float32)
+                        pvals = np.zeros((nlat, nlon), dtype=np.float32)
+                        for i in range(nlat):
+                            for j in range(nlon):
 
+                                refbox = refanoms[:, i, j]
+                                modbox = anoms[:, i, j]
+                                ustat, pvalue = scipy.stats.mannwhitneyu(refbox, modbox, alternative='two-sided')
 
+                                uvals[i, j] = ustat
+                                pvals[i, j] = pvalue
+
+                        print uvals
+                        print pvals
+
+                        if not fdr:
+                            # Simple approach - Get mask over values where pval <= a specified value
+                            mask_pvals = np.zeros((nlat, nlon), dtype=np.float32)
+                            for i in range(nlat):
+                                for j in range(nlon):
+                                    if pvals[i, j] <= 0.01:
+                                        mask_pvals[i, j] = 1
+                                    else:
+                                        mask_pvals[i, j] = 0
 
                         if cnt == 1:
                             m, f = pt.AfrBasemap(lat, lon, drawstuff=True, prj='cyl', fno=1, rsltn='l')
 
-                            # Get lon lat grid
-                            plon, plat = np.meshgrid(lon, lat)
+                        # Get lon lat grid
+                        plon, plat = np.meshgrid(lon, lat)
 
+                        anom_comp = np.nanmean(anoms, 0)
 
-
-                                print "Calculating anomaly from long term MONTHLY means..."
-
-                                anoms=np.zeros((nsamp,nlat,nlon),dtype=np.float32)
-                                for day in range(nsamp):
-                                    mon_thisday=smpdtime[day,1]
-                                    this_monmean=meandata[mon_thisday-1]
-                                    this_anom=smpdata[day,:,:]-this_monmean
-                                    anoms[day,:,:]=this_anom
-
-                                anom_comp=np.nanmean(anoms,0)
-                                data4plot = anom_comp
-
-                            elif ctyp=='anom_seas':
-
-                                # get seasonal mean
-                                thesemons=np.zeros((nmon,nlat,nlon), dtype=np.float32)
-                                for zz in range(len(mons)):
-                                    thesemons[zz, :, :] = meandata[mons[zz] - 1, :, :]
-                                seasmean = np.nanmean(thesemons, 0)
-
-                                anoms = np.asarray([smpdata[x, :, :] - seasmean for x in range(len(smpdata[:, 0, 0]))])
-
-                                anom_comp=np.nanmean(anoms,0)
-                                data4plot = anom_comp
-
-                            if ctyp=='anom_mon' or ctyp=='anom_seas':
-                                if agtest:
-
-                                    print "Calculating number of days which agree..."
-
-                                    # Get signs
-                                    anoms_signs = np.sign(anoms)
-                                    comp_signs = np.sign(anom_comp)
-
-                                    # Count ndays in composite with same sign as mean
-                                    mask_zeros=np.zeros((nlat,nlon),dtype=np.float32)
-                                    for i in range(nlat):
-                                        for j in range(nlon):
-                                            count=len(np.where(anoms_signs[:,i,j]==comp_signs[i,j])[0])
-                                            perc=(float(count)/float(nsamp))*100
-                                            if perc>=perc_ag:
-                                                mask_zeros[i,j]=1
-                                            else:
-                                                mask_zeros[i,j]=0
-
-                            # Plot
-                            print "Plotting for model "+name2
-                            plt.subplot(yplots,xplots,cnt)
-                            if spec_col:
-                                if globv == 'olr':
-                                    if ctyp=='abs':
-                                        clevs = np.arange(200, 280, 10)
-                                        #cm = plt.cm.gray_r
-                                        cm = plt.cm.Wistia_r
-                                    elif ctyp=='anom_mon' or ctyp=='anom_seas':
-                                        #clevs = np.arange(-75,90,15)
-                                        clevs= np.arange(-40,50,10)
-                                        cm = plt.cm.BrBG_r
-                                elif globv=='pr':
-                                    if ctyp=='abs':
-                                        clevs = np.arange(0, 16, 2)
-                                        #cm = plt.cm.YlGnBu
-                                        cm = plt.cm.magma
-                                    elif ctyp=='anom_mon' or ctyp=='anom_seas':
-                                        clevs = np.arange(-12,14, 2)
-                                        cm = plt.cm.bwr_r
-                                elif globv == 'omega':
-                                    clevs = np.arange(-0.12, 0.14, 0.02)
-                                    cm = plt.cm.bwr
-                                elif globv == 'q':
-                                    clevs = np.arange(-0.004, 0.0045, 0.0005)
-                                    cm = plt.cm.bwr_r
-                                elif globv == 'gpth':
-                                    clevs = np.arange(-60, 65, 5)
-                                    cm = plt.cm.PiYG_r
-                                cs = m.contourf(plon, plat, data4plot, clevs, cmap=cm, extend='both')
-                            else:
-                                cs = m.contourf(plon, plat, data4plot, extend='both')
-                            if ctyp=='anom_mon' or ctyp=='anom_seas':
-                                if agtest:
-                                    hatch = m.contourf(plon, plat, mask_zeros, levels=[-1.0, 0.0, 1.0], hatches=["", '.'], alpha=0)
-                            if manntest:
-                                hatch = m.contourf(plon,plat,mask_pvals,levels=[-1.0, 0.0, 1.0], hatches=["", '.'], alpha=0)
-
-                            plt.title(name2,fontsize=8,fontweight='demibold')
-
-                            # Redraw map
-                            m.drawcountries()
-                            m.drawcoastlines()
-
-                            # Draw box
-                            if drawnest:
-                                if type=='cont':
-                                    nestbox=nestbox_cont
-                                elif type=='mada':
-                                    nestbox=nestbox_mada
-
-                                nest_x=[nestbox[0],nestbox[0],nestbox[1],nestbox[1],nestbox[0]]
-                                nest_y=[nestbox[2],nestbox[3],nestbox[3],nestbox[2],nestbox[2]]
-                                plt.plot(nest_x,nest_y,color='k',linewidth=2)
-
-                            cnt += 1
-
-
+                        # Plot
+                        print "Plotting for model "+name2
+                        plt.subplot(yplots,xplots,cnt)
+                        if spec_col:
+                            if globv == 'olr':
+                                clevs= np.arange(-40,50,10)
+                                cm = plt.cm.BrBG_r
+                            elif globv=='pr':
+                                clevs = np.arange(-12,14, 2)
+                                cm = plt.cm.bwr_r
+                            elif globv == 'omega':
+                                clevs = np.arange(-0.12, 0.14, 0.02)
+                                cm = plt.cm.bwr
+                            elif globv == 'q':
+                                clevs = np.arange(-0.004, 0.0045, 0.0005)
+                                cm = plt.cm.bwr_r
+                            elif globv == 'gpth':
+                                clevs = np.arange(-60, 65, 5)
+                                cm = plt.cm.PiYG_r
+                            cs = m.contourf(plon, plat, anom_comp, clevs, cmap=cm, extend='both')
                         else:
-                            print 'NO sample FILE AVAILABLE for ' + dset2 + '_' + name2
-                            print 'Moving to next model....'
-                            cnt += 1
+                            cs = m.contourf(plon, plat, anom_comp, extend='both')
+                        hatch = m.contourf(plon,plat,mask_pvals,levels=[-1.0, 0.0, 1.0], hatches=["", '.'], alpha=0)
+
+                        plt.title(name2,fontsize=8,fontweight='demibold')
+
+                        # Redraw map
+                        m.drawcountries()
+                        m.drawcoastlines()
+
+
+                        cnt += 1
+
+
+                    else:
+                        print 'NO sample FILE AVAILABLE for ' + dset2 + '_' + name2
+                        print 'Moving to next model....'
+                        cnt += 1
 
                 print "Finalising plot..."
                 plt.subplots_adjust(left=0.05,right=0.9,top=0.95,bottom=0.02,wspace=0.1,hspace=0.2)
@@ -524,16 +483,7 @@ for r in range(len(runs)):
                 my.ytickfonts(fontsize=12.)
 
                 # Save
-                if ctyp == 'anom_mon' or ctyp=='anom_seas':
-                    if agtest:
-                        cstr=ctyp+'_agtest_'+str(perc_ag)
-                    else:
-                        cstr = ctyp
-                else:
-                    cstr=ctyp
-
-                if manntest:
-                    cstr=cstr+'manntest_'+str(alphaFDR)
+                cstr = ctyp
 
                 if climyr:
                     cstr=cstr+'_35years_'

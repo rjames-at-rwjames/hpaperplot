@@ -2,12 +2,12 @@
 # using ANOVA and Kruskal-Wallis (non-parametric)
 # on each gridpoint
 
-# Aiming at variables which I want to plot as a contour
-# ctyp=abs
-# ctyp=anom_mon
+# this script is to output the values for 1 gridbox to a table
+# so that I can play around and check the stats
 
 import os
 import sys
+import csv
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,6 +28,10 @@ import scipy
 import scipy.interpolate as spi
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
+
+### Gridbox location
+chlat=[28]
+chlon=[28]
 
 ### Running options
 first_test=False
@@ -53,12 +57,10 @@ climyr='spec' # this is to use new climatology files which are based on only 35 
                 # 'spec' is 35 years
                 # 'prev' is previous files - all different climatologies
 
-## Interpolation options
+## Interpolation options - I removed here option because need to check lat ordering
 interp='file' # 'file' (to import interpolated file) or 'here' to do it in this script
 if interp=='file':
     fileres='360x180'
-    res=1.0
-elif interp=='here':
     res=1.0
 
 ## Info for options
@@ -93,10 +95,8 @@ bkdir=cwd+"/../../../CTdata/"
 thisdir=bkdir+"/hpaperplot/"
 botdir=bkdir+"metbot_multi_dset/"
 
-compdir=thisdir+"comp4paper_anova/"
-if lag:
-    compdir=thisdir+"comp4paper_anova_lags/"
-my.mkdir_p(compdir)
+outdir=thisdir+"table_vals2check/"
+my.mkdir_p(outdir)
 
 # levels - if levsel is false this will just be 1 level
 l=0
@@ -150,23 +150,12 @@ for v in range(len(varlist)):
                     # Re-order lats
                     lats = lats[::-1]
 
-                    if first_test:
-                        lonloop=5
-                        latloop=5
-                    else:
-                        lonloop=nlon
-                        latloop=nlat
-
-                    # Generate arrays for the mapping
-                    f_grid=np.zeros((nlat,nlon),dtype=np.float32)
-                    pf_grid=np.zeros((nlat,nlon),dtype=np.float32)
-
-                    k_grid=np.zeros((nlat,nlon),dtype=np.float32)
-                    pk_grid=np.zeros((nlat,nlon),dtype=np.float32)
-
                     # Loop gridboxes
-                    for i in range(latloop):
-                        for j in range(lonloop):
+                    for i in chlat:
+                        for j in chlon:
+
+                            print i
+                            print j
 
                             # Set the model sample
                             dset='cmip5'
@@ -226,8 +215,6 @@ for v in range(len(varlist)):
                                     else:
                                         ys = moddct['fullrun']
 
-
-
                                 # Open sample file
                                 inpath=bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/'
                                 filend=''
@@ -284,7 +271,6 @@ for v in range(len(varlist)):
                                     nsamp=len(smpdata[:,0,0])
                                     this_nlat = len(lat)
                                     this_nlon = len(lon)
-
 
                                     # If anomaly open ltmean file
                                     if ctyp == 'anom_seas':
@@ -362,21 +348,8 @@ for v in range(len(varlist)):
                                     elif ctyp=='anom_seas':
                                         chosedata=anoms
 
+                                    prodata=chosedata
 
-                                    # Interpolate data
-                                    if interp=='here':
-                                        print "Interpolating data to a " + str(res) + " grid"
-                                        prodata = np.zeros((nsamp, nlat, nlon), dtype=np.float32)
-
-                                        # Get rid of nans
-                                        nonan = np.nan_to_num(chosedata)
-
-                                        for step in range(nsamp):
-                                            Interpolator = spi.interp2d(lon, lat, nonan[step, :, :], kind='linear')
-                                            prodata[step,:,:] = Interpolator(lons,lats)
-
-                                    else:
-                                        prodata=chosedata
 
                                     # Check smpdata
                                     #print 'Checking data'
@@ -387,6 +360,16 @@ for v in range(len(varlist)):
                                     # Select this gridpoint
                                     collect[mo]=prodata[:,i,j]
                                     #print collect[mo]
+
+                            # Open text file - for gbox anoms
+                            outtxt = outdir + 'onegridbox_4testing.lat' + str(i) + \
+                                     '.lon' + str(j) + '.' + globv + '.' + choosel[l] + '.csv'
+                            with open(outtxt, "w") as fl:
+                                writer = csv.writer(fl,delimiter=",")
+                                # writer.writerows(zip(collect[0],collect[1],collect[2],collect[3],collect[4],collect[5],\
+                                #                      collect[6],collect[7],collect[8],collect[9]))
+                                writer.writerows(zip(*collect))
+
 
                             # anova test for this gridpoint
                             print "Sample data collected for this gridpoint:"
@@ -401,88 +384,25 @@ for v in range(len(varlist)):
                             f, p = scipy.stats.f_oneway(*collect)
                             print "F stat is:"
                             print f
-                            f_grid[i,j] = f
                             print "p value is:"
                             print p
-                            pf_grid[i,j] = p
 
                             "Running Kruskal-Wallis..."
                             K, pval = scipy.stats.kruskal(*collect)
                             print "Output stat is:"
                             print K
-                            k_grid[i,j] = K
                             print "p value is:"
                             print pval
-                            pk_grid[i,j] = pval
 
-                    # Map values
-                    print "Setting up plot..."
-                    g, ax = plt.subplots(figsize=figdim)
+                            # Open text file - for test statistics
+                            testtxt = outdir + 'onegridbox_test_result.lat' + str(i) + \
+                                      '.lon' + str(j) + '.' + globv + '.' + choosel[l] + '.txt'
+                            txtfile2 = open(testtxt, "w")
 
-                    m, f = pt.AfrBasemap(lats, lons, drawstuff=True, prj='cyl', fno=1, rsltn='l')
-                    plon, plat = np.meshgrid(lons, lats)
-                    xplots=2
-                    yplots=2
+                            print >> txtfile2,'ANOVA '+str(round(f,2))
+                            print >> txtfile2,'pval '+str(round(p,2))
+                            print >> txtfile2,'Kruskal-Wallis '+str(round(K,2))
+                            print >> txtfile2,'pval '+str(round(pval,2))
 
-                    # Plot fstat
-                    print 'Plotting ANOVA statistic'
-                    ax2 = plt.subplot(yplots,xplots,1)
-                    cs = m.contourf(plon, plat, f_grid)
-                    m.drawcountries()
-                    m.drawcoastlines()
-                    plt.title('ANOVA: F value')
-
-                    cax = make_axes_locatable(ax2).append_axes("right", size="5%", pad="2%")
-                    cb = plt.colorbar(cs, cax=cax)
-
-
-
-                    # Plot pvalue for fstat
-                    print 'Plotting ANOVA p value'
-                    ax2 = plt.subplot(yplots,xplots,2)
-                    clevs = np.arange(0,0.1,0.01)
-                    cs = m.contourf(plon, plat, pf_grid, clevs, extend='both')
-                    m.drawcountries()
-                    m.drawcoastlines()
-                    plt.title('ANOVA: p value')
-
-                    cax = make_axes_locatable(ax2).append_axes("right", size="5%", pad="2%")
-                    cb = plt.colorbar(cs, cax=cax)
-
-
-                    # Plot H stat
-                    print 'Plotting Kruskal statistic'
-                    ax2 = plt.subplot(yplots,xplots,3)
-                    cs = m.contourf(plon, plat, k_grid)
-                    m.drawcountries()
-                    m.drawcoastlines()
-                    plt.title('Kruskal-Wallis: H value')
-
-                    cax = make_axes_locatable(ax2).append_axes("right", size="5%", pad="2%")
-                    cb = plt.colorbar(cs, cax=cax)
-
-
-
-                    # Plot fstat
-                    print 'Plotting p value for H statistic'
-                    ax2 = plt.subplot(yplots,xplots,4)
-                    clevs = np.arange(0,0.1,0.01)
-                    cs = m.contourf(plon, plat, pk_grid, clevs, extend='both')
-                    m.drawcountries()
-                    m.drawcoastlines()
-                    plt.title('Kruskal-Wallis: p value')
-
-                    cax = make_axes_locatable(ax2).append_axes("right", size="5%", pad="2%")
-                    cb = plt.colorbar(cs, cax=cax)
-
-
-                    if test_scr:
-                        mods='testmodels'
-                    elif remove_outliers:
-                        mods='nooutliers_'+howmany
-                    else:
-                        mods='allmod'
-
-                    compname= compdir + 'statsplot_test.'+globv+'.'+choosel[l]+'.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.png'
-                    plt.savefig(compname, dpi=150)
-                    plt.close()
+                            # Finalise text files
+                            txtfile2.close()
