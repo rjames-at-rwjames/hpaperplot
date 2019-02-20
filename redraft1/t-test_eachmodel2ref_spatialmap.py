@@ -33,9 +33,9 @@ runs=['opt1']
 ctyp='anom_seas' #anom_seas is rt seasonal mean
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
 spec_col=True
-varlist=['olr']
+varlist=['omega']
 thname='actual'
-levsel=False
+levsel=True
 if levsel:
     choosel=['500'] # can add a list
 else:
@@ -51,13 +51,18 @@ elif domain=='nglob':
 elif domain=='mac_wave':
     sub='SASA'
     figdim=[9,9]
-lag=False
+lag=True
 if lag:
-    edays=[-3,-2,-1,0,1,2,3]
+    edays=[-2,-1,0,1]
 else:
     edays=[0]
 
-fdr=False
+fdr=True
+if fdr:
+    alphaFDR=0.05
+else:
+    specp=0.05
+difftest='mannw' # 't-test' or 'mannw'
 
 ## Interpolation options
 interp='file' # 'file' (to import interpolated file) or 'here' to do it in this script
@@ -123,11 +128,21 @@ for r in range(len(runs)):
             dset='noaa'
             name='cdr'
             ysclim = '1979_2013'
-            levc = int(choosel[l]) * 100
+            levc = int(choosel[l])
 
-            if globv=='olr':
-                dset2=dset
-                name2=name
+            # Switch variable if NOAA
+            if dset == 'noaa' and globv != 'olr':
+                if globv == 'pr':
+                    ds4noaa = 'trmm'
+                    mod4noaa = 'trmm_3b42v7'
+                else:
+                    ds4noaa = 'ncep'
+                    mod4noaa = 'ncep2'
+                dset2 = ds4noaa
+                name2 = mod4noaa
+            else:
+                dset2 = dset
+                name2 = name
 
             inpath = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/'
             filend = ''
@@ -192,7 +207,7 @@ for r in range(len(runs)):
                 refmean, time, lat, lon, dtime = ncout
             elif ndim == 6:
                 refmean, time, lat, lon, lev, dtime = ncout
-                refmean = np.squeeze(meandata)
+                refmean = np.squeeze(refmean)
             else:
                 print 'Check number of dims in ncfile'
             dtime[:, 3] = 0
@@ -206,6 +221,11 @@ for r in range(len(runs)):
 
             print 'Calculating anomalies for reference'
             refanoms = np.asarray([refsmp[x, :, :] - refseasmean for x in range(len(refsmp[:, 0, 0]))])
+
+            # Flip lats if ncep2
+            if name2=='ncep2':
+                lat = lat[::-1]
+                refanoms = refanoms[:, ::-1, :]
 
             # Open plotting
             print 'Setting up plot before looping models'
@@ -277,7 +297,7 @@ for r in range(len(runs)):
                         else:
                             ys = moddct['fullrun']
 
-                    # Years for clim and manntest
+                    # Years for clim and difftest
                     if climyr == 'spec':
                         ysclim = moddct['yrfname']
                     else:
@@ -395,10 +415,6 @@ for r in range(len(runs)):
 
                         anoms = np.asarray([smpdata[x, :, :] - seasmean for x in range(len(smpdata[:, 0, 0]))])
 
-                        # if dset == 'cmip5':
-                        #     lat = lat[::-1]
-                        #     anoms = anoms[:, ::-1, :]
-
                         # Test difference between this model and reference
                         print 'Starting test between '+name2+' and reference'
 
@@ -409,10 +425,18 @@ for r in range(len(runs)):
 
                                 refbox = refanoms[:, i, j]
                                 modbox = anoms[:, i, j]
-                                ustat, pvalue = scipy.stats.mannwhitneyu(refbox, modbox, alternative='two-sided')
+
+                                if difftest=='mannw':
+                                    # mann test
+                                    ustat, pvalue = scipy.stats.mannwhitneyu(refbox, modbox, alternative='two-sided')
+
+                                elif difftest=='t-test':
+                                    # t-test
+                                    ustat, pvalue = scipy.stats.ttest_ind(refbox,modbox)
 
                                 uvals[i, j] = ustat
                                 pvals[i, j] = pvalue
+
 
                         print uvals
                         print pvals
@@ -422,10 +446,42 @@ for r in range(len(runs)):
                             mask_pvals = np.zeros((nlat, nlon), dtype=np.float32)
                             for i in range(nlat):
                                 for j in range(nlon):
-                                    if pvals[i, j] <= 0.01:
+                                    if pvals[i, j] <= specp:
                                         mask_pvals[i, j] = 1
                                     else:
                                         mask_pvals[i, j] = 0
+
+                        else:
+
+                            # Get p value that accounts for False Discovery Rate (FDR)
+                            nboxes=nlat*nlon
+                            gcnt=1
+                            plist=[]
+                            for i in range(nlat):
+                                for j in range(nlon):
+                                    thisp=pvals[i,j]
+                                    stat=(gcnt/float(nboxes))*alphaFDR
+                                    #print thisp
+                                    #print stat
+                                    if thisp <= stat:
+                                        plist.append(thisp)
+                                    gcnt+=1
+
+                            plist=np.asarray(plist)
+                            print plist
+                            print len(plist)
+                            pmax=np.max(plist)
+                            print 'pFDR = '
+                            print pmax
+
+                            mask_pvals = np.zeros((nlat, nlon), dtype=np.float32)
+                            for i in range(nlat):
+                                for j in range(nlon):
+                                    if pvals[i,j] <= pmax:
+                                        mask_pvals[i, j] = 1
+                                    else:
+                                        mask_pvals[i, j] = 0
+
 
                         if cnt == 1:
                             m, f = pt.AfrBasemap(lat, lon, drawstuff=True, prj='cyl', fno=1, rsltn='l')
@@ -487,12 +543,16 @@ for r in range(len(runs)):
 
                 if climyr:
                     cstr=cstr+'_35years_'
+                if fdr:
+                    cstr=cstr+'.fdr_'+str(alphaFDR)
+                else:
+                    cstr=cstr+'.pval_'+str(specp)
 
                 if lag:
-                    compname = compdir + 'multi_comp_' + cstr + '.' + sample + '.' + type + '.' + globv + \
+                    compname = compdir + 'multi_comp_' + cstr + '.'+difftest+'.' + sample + '.' + type + '.' + globv + \
                                '.' + choosel[l] + '.' + sub + '.from_event' + from_event + '.lag_'+str(edays[lo])+'.png'
                 else:
-                    compname = compdir + 'multi_comp_'+cstr+'.'+sample+'.' + type + '.' + globv + \
+                    compname = compdir + 'multi_comp_'+cstr+'.'+difftest+'.'+sample+'.' + type + '.' + globv + \
                           '.'+choosel[l]+'.'+sub+'.from_event'+from_event+'.png'
                 print 'saving figure as '+compname
                 plt.savefig(compname, dpi=150)

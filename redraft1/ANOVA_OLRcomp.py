@@ -32,7 +32,7 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 ### Running options
 first_test=False
 test_scr=False
-remove_outliers=False
+remove_outliers=True
 howmany='many' # 'two' or 'many'
 
 runs=['opt1']

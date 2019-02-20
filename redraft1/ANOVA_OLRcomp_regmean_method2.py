@@ -41,17 +41,18 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 ### Running options
 test_scr=False
+th_offset=False
 
 runs=['opt1']
-ctyps=['anom_seas'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
+ctyps=['abs'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
 spec_col=True
-varlist=['omega']
+varlist=['olr']
 thname='actual'
 alphord=True
-levsel=True
+levsel=False
 if levsel:
-    choosel=['500'] # can add a list
+    choosel=['850'] # can add a list
 else:
     choosel=['1']
 domain='swio'
@@ -63,10 +64,13 @@ climyr='spec' # this is to use new climatology files which are based on only 35 
 
 
 ## Interpolation options
-interp='file' # 'file' (to import interpolated file) or 'here' to do it in this script
+interp='none' # 'file' (to import interpolated file) or 'here' to do it in this script
+                # or 'none' to not interpolate
 if interp=='file':
     fileres='360x180'
     res=1.0
+elif interp=='none':
+    res=0.0
 
 ## Info for options
 if domain=='swio':
@@ -390,9 +394,10 @@ for r in range(len(runs)):
                             elif ctyp=='anom_seas':
                                 chosedata=anoms
 
-                            if dset == 'cmip5':
-                                lat = lat[::-1]
-                                chosedata = chosedata[:, ::-1, :]
+                            # if dset == 'cmip5': - not sure why I was doing this - confusion following map script
+                            # in map script it was needed because I made a grid with these dimensions
+                            #     lat = lat[::-1]
+                            #     chosedata = chosedata[:, ::-1, :]
 
                             # Get the cloudband outlines for sample
                             #   first open synop file
@@ -406,6 +411,8 @@ for r in range(len(runs)):
                                         print 'thresh=' + str(thresh)
                             thresh = int(thresh)
                             thre_str = str(thresh)
+
+                            thdiff=243.0-float(thresh)
 
                             outsuf = botpath + name + '_'
                             syfile = outsuf + thre_str + '_' + dset + '-OLR.synop'
@@ -617,6 +624,10 @@ for r in range(len(runs)):
                                 masked_var[rdt, :, :] = r
                                 cbmeans[rdt]= np.ma.mean(r)
 
+                            # Adjust if thresh adjustment
+                            if th_offset:
+                                cbmeans=cbmeans+thdiff
+
                             # Collect this model's data for anova
                             collect[cnt-1]=cbmeans
                             print collect[cnt-1]
@@ -668,6 +679,10 @@ for r in range(len(runs)):
                 else:
                     mods='allmod'
 
-                compname= compdir + 'statsplot_test.'+globv+'.'+choosel[l]+'.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.png'
+                bit=""
+                if th_offset:
+                    bit=bit+"th_offset"
+
+                compname= compdir + 'statsplot_test.'+globv+'.'+choosel[l]+'.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.'+bit+'.png'
                 plt.savefig(compname, dpi=150)
                 plt.close()

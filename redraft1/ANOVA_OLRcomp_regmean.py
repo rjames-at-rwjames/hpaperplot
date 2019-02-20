@@ -36,13 +36,13 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 test_scr=False
 
 runs=['opt1']
-ctyps=['anom_seas'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
+ctyps=['abs'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
 spec_col=True
-varlist=['q']
+varlist=['olr']
 thname='actual'
 alphord=True
-levsel=True
+levsel=False
 if levsel:
     choosel=['850'] # can add a list
 else:

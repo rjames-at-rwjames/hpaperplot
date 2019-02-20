@@ -158,7 +158,7 @@ for v in range(len(varlist)):
                             print j
 
                             # Set the model sample
-                            dset='cmip5'
+                            dset='noaa'
                             if test_scr:
                                 nmod=3
                             else:
@@ -278,6 +278,8 @@ for v in range(len(varlist)):
                                         # Years for clim
                                         if climyr == 'spec':
                                             ysclim = moddct['yrfname']
+                                            if dset=='noaa':
+                                                ysclim = '1979_2013'
                                         else:
                                             ysclim = ys
                                         year1 = float(ysclim[0:4])
@@ -362,7 +364,7 @@ for v in range(len(varlist)):
                                     #print collect[mo]
 
                             # Open text file - for gbox anoms
-                            outtxt = outdir + 'onegridbox_4testing.lat' + str(i) + \
+                            outtxt = outdir + 'onegridbox_4testing.'+dset+'.lat' + str(i) + \
                                      '.lon' + str(j) + '.' + globv + '.' + choosel[l] + '.csv'
                             with open(outtxt, "w") as fl:
                                 writer = csv.writer(fl,delimiter=",")
@@ -371,38 +373,38 @@ for v in range(len(varlist)):
                                 writer.writerows(zip(*collect))
 
 
-                            # anova test for this gridpoint
-                            print "Sample data collected for this gridpoint:"
-                            print 'lat'+str(i)
-                            print 'template '+str(lats[i])
-                            print 'model '+str(lat[i])
-                            print 'lon'+str(j)
-                            print 'template '+str(lons[j])
-                            print 'model '+str(lon[j])
-                            #print collect
-                            print "Running ANOVA..."
-                            f, p = scipy.stats.f_oneway(*collect)
-                            print "F stat is:"
-                            print f
-                            print "p value is:"
-                            print p
-
-                            "Running Kruskal-Wallis..."
-                            K, pval = scipy.stats.kruskal(*collect)
-                            print "Output stat is:"
-                            print K
-                            print "p value is:"
-                            print pval
-
-                            # Open text file - for test statistics
-                            testtxt = outdir + 'onegridbox_test_result.lat' + str(i) + \
-                                      '.lon' + str(j) + '.' + globv + '.' + choosel[l] + '.txt'
-                            txtfile2 = open(testtxt, "w")
-
-                            print >> txtfile2,'ANOVA '+str(round(f,2))
-                            print >> txtfile2,'pval '+str(round(p,2))
-                            print >> txtfile2,'Kruskal-Wallis '+str(round(K,2))
-                            print >> txtfile2,'pval '+str(round(pval,2))
-
-                            # Finalise text files
-                            txtfile2.close()
+                            # # anova test for this gridpoint
+                            # print "Sample data collected for this gridpoint:"
+                            # print 'lat'+str(i)
+                            # print 'template '+str(lats[i])
+                            # print 'model '+str(lat[i])
+                            # print 'lon'+str(j)
+                            # print 'template '+str(lons[j])
+                            # print 'model '+str(lon[j])
+                            # #print collect
+                            # print "Running ANOVA..."
+                            # f, p = scipy.stats.f_oneway(*collect)
+                            # print "F stat is:"
+                            # print f
+                            # print "p value is:"
+                            # print p
+                            #
+                            # "Running Kruskal-Wallis..."
+                            # K, pval = scipy.stats.kruskal(*collect)
+                            # print "Output stat is:"
+                            # print K
+                            # print "p value is:"
+                            # print pval
+                            #
+                            # # Open text file - for test statistics
+                            # testtxt = outdir + 'onegridbox_test_result.lat' + str(i) + \
+                            #           '.lon' + str(j) + '.' + globv + '.' + choosel[l] + '.txt'
+                            # txtfile2 = open(testtxt, "w")
+                            #
+                            # print >> txtfile2,'ANOVA '+str(round(f,2))
+                            # print >> txtfile2,'pval '+str(round(p,2))
+                            # print >> txtfile2,'Kruskal-Wallis '+str(round(K,2))
+                            # print >> txtfile2,'pval '+str(round(pval,2))
+                            #
+                            # # Finalise text files
+                            # txtfile2.close()
