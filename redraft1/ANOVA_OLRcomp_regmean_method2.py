@@ -40,7 +40,7 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 
 ### Running options
-test_scr=False
+test_scr=True
 th_offset=False
 
 runs=['opt1']
@@ -455,6 +455,8 @@ for r in range(len(runs)):
                             mons = []
                             chs = []
                             ekeys = []
+                            olrmns = []
+
 
                             for b in range(len(refmbt)):
                                 date = refmbt[b]
@@ -462,6 +464,7 @@ for r in range(len(runs)):
                                 cX = refmbs[b, 3]
                                 cY = refmbs[b, 4]
                                 deg = refmbs[b, 2]
+                                olrmn = refmbs[b, 11]
 
                                 if from_event == 'first':
                                     # print 'Checking if the date is the first day of an event'
@@ -482,6 +485,7 @@ for r in range(len(runs)):
                                                     mons.append(mon)
                                                     chs.append(e.blobs[refkey]['ch'][e.trk[0]])
                                                     ekeys.append(key)
+                                                    olrmns.append(olrmn)
                                             #     else:
                                             #         print 'this is not the first day... ignore'
                                             # else:
@@ -510,6 +514,7 @@ for r in range(len(runs)):
                                                     mons.append(mon)
                                                     chs.append(e.blobs[refkey]['ch'][e.trk[0]])
                                                     ekeys.append(key)
+                                                    olrmns.append(olrmn)
                                             #     else:
                                             #         print 'this is not the first day... ignore'
                                             # else:
@@ -523,6 +528,7 @@ for r in range(len(runs)):
                             mons = np.asarray(mons)
                             chs = np.asarray(chs)
                             ekeys = np.asarray(ekeys)
+                            olrmns = np.asarray(olrmns)
 
                             ### Limit to certain mons
                             if seas == 'NDJFM':  # because the > and < statement below only works for summer
@@ -536,6 +542,7 @@ for r in range(len(runs)):
                                 mons = mons[pick]
                                 chs = chs[pick]
                                 ekeys = ekeys[pick]
+                                olrmns = olrmns[pick]
 
                             ### Find sample
                             if sample == 'blon' or sample == 'blon2':
@@ -546,6 +553,7 @@ for r in range(len(runs)):
                                 tmp_mons = []
                                 tmp_chs = []
                                 tmp_ekeys = []
+                                tmp_olrmns = []
 
                                 for b in range(len(edts)):
                                     date = edts[b]
@@ -555,6 +563,7 @@ for r in range(len(runs)):
                                     deg = degs[b]
                                     ch = chs[b]
                                     thiskey = ekeys[b]
+                                    thisolr = olrmns[b]
 
                                     # Check on the latitude of centroid
                                     if cY > s_cen[sind] and cY < n_cen[sind]:
@@ -571,6 +580,7 @@ for r in range(len(runs)):
                                                 tmp_mons.append(mon)
                                                 tmp_chs.append(ch)
                                                 tmp_ekeys.append(thiskey)
+                                                tmp_olrmns.append(thisolr)
 
                                 tmp_edts = np.asarray(tmp_edts)
                                 tmp_cXs = np.asarray(tmp_cXs)
@@ -579,6 +589,7 @@ for r in range(len(runs)):
                                 tmp_mons = np.asarray(tmp_mons)
                                 tmp_chs = np.asarray(tmp_chs)
                                 tmp_ekeys = np.asarray(tmp_ekeys)
+                                tmp_olrmns = np.asarray(tmp_olrmns)
                                 print 'Shortlist of ' + str(len(tmp_edts)) + ' continental cloudbands'
 
                                 # Get the 50 closest to best_lon
@@ -594,6 +605,7 @@ for r in range(len(runs)):
                                 smp_degs = tmp_degs[first50_ind]
                                 smp_mons = tmp_mons[first50_ind]
                                 smp_chs = tmp_chs[first50_ind]
+                                smp_olrmns = tmp_olrmns[first50_ind]
                                 smp_ekeys = tmp_ekeys[first50_ind]
                                 smp_ekeys = smp_ekeys[:,0]
 
@@ -613,6 +625,10 @@ for r in range(len(runs)):
                                 smp_mons = smp_mons[keyinds]
                                 smp_chs = smp_chs[keyinds]
                                 smp_ekeys = smp_ekeys[keyinds]
+                                smp_olrmns = smp_olrmns[keyinds]
+
+                            print 'Printing data for OLR means stored in mbs files'
+                            print smp_olrmns
 
 
                             #   then use the outline to cut out data from sample
@@ -623,6 +639,9 @@ for r in range(len(runs)):
                                 r = np.ma.MaskedArray(chosedata[rdt, :, :], mask=~chmask)
                                 masked_var[rdt, :, :] = r
                                 cbmeans[rdt]= np.ma.mean(r)
+
+                            print 'Printing data for OLR means calculated here'
+                            print cbmeans
 
                             # Adjust if thresh adjustment
                             if th_offset:
