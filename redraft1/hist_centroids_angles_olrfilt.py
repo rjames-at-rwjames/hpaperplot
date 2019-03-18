@@ -356,18 +356,18 @@ for t in range(nthresh):
             mons = np.asarray(mons)
             olrmns = np.asarray(olrmns)
 
-            ### Limit to certain mons
-            if one_seas:
-                if seas_pick=='NDJFM': # because the > and < statement below only works for summer
-                    pick1=np.where(mons >= f_mon)[0]
-                    pick2=np.where(mons <= l_mon)[0]
-                    pick=np.concatenate([pick1,pick2])
-                    edts=edts[pick]
-                    cXs=cXs[pick]
-                    cYs=cYs[pick]
-                    degs=degs[pick]
-                    mons=mons[pick]
-                    olrmns=olrmns[pick]
+            # ### Limit to certain mons - removed because this is not helpful - creates difference to original sample procedure
+            # if one_seas:
+            #     if seas_pick=='NDJFM': # because the > and < statement below only works for summer
+            #         pick1=np.where(mons >= f_mon)[0]
+            #         pick2=np.where(mons <= l_mon)[0]
+            #         pick=np.concatenate([pick1,pick2])
+            #         edts=edts[pick]
+            #         cXs=cXs[pick]
+            #         cYs=cYs[pick]
+            #         degs=degs[pick]
+            #         mons=mons[pick]
+            #         olrmns=olrmns[pick]
 
             ### OLR filt
             if olrfilt:

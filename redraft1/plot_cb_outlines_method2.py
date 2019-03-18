@@ -313,17 +313,17 @@ for r in range(len(runs)):
                 chs = np.asarray(chs)
 
 
-                ### Limit to certain mons
-                if seas == 'NDJFM':  # because the > and < statement below only works for summer
-                    pick1 = np.where(mons >= f_mon)[0]
-                    pick2 = np.where(mons <= l_mon)[0]
-                    pick = np.concatenate([pick1, pick2])
-                    edts = edts[pick]
-                    cXs = cXs[pick]
-                    cYs = cYs[pick]
-                    degs = degs[pick]
-                    mons = mons[pick]
-                    chs = chs[pick]
+                # ### Limit to certain mons - removed because this is not helpful - creates difference to original sample procedure
+                # if seas == 'NDJFM':  # because the > and < statement below only works for summer
+                #     pick1 = np.where(mons >= f_mon)[0]
+                #     pick2 = np.where(mons <= l_mon)[0]
+                #     pick = np.concatenate([pick1, pick2])
+                #     edts = edts[pick]
+                #     cXs = cXs[pick]
+                #     cYs = cYs[pick]
+                #     degs = degs[pick]
+                #     mons = mons[pick]
+                #     chs = chs[pick]
 
                 ### Find sample
                 if sample == 'blon' or sample == 'blon2':

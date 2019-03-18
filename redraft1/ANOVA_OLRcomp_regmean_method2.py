@@ -40,7 +40,8 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 
 ### Running options
-test_scr=True
+which_olr='calc' # 'store' for the one that exists already, 'calc' for new one
+test_scr=False
 th_offset=False
 
 runs=['opt1']
@@ -530,19 +531,19 @@ for r in range(len(runs)):
                             ekeys = np.asarray(ekeys)
                             olrmns = np.asarray(olrmns)
 
-                            ### Limit to certain mons
-                            if seas == 'NDJFM':  # because the > and < statement below only works for summer
-                                pick1 = np.where(mons >= f_mon)[0]
-                                pick2 = np.where(mons <= l_mon)[0]
-                                pick = np.concatenate([pick1, pick2])
-                                edts = edts[pick]
-                                cXs = cXs[pick]
-                                cYs = cYs[pick]
-                                degs = degs[pick]
-                                mons = mons[pick]
-                                chs = chs[pick]
-                                ekeys = ekeys[pick]
-                                olrmns = olrmns[pick]
+                            # ### Limit to certain mons - removed because this is not helpful - creates difference to original sample procedure
+                            # if seas == 'NDJFM':  # because the > and < statement below only works for summer
+                            #     pick1 = np.where(mons >= f_mon)[0]
+                            #     pick2 = np.where(mons <= l_mon)[0]
+                            #     pick = np.concatenate([pick1, pick2])
+                            #     edts = edts[pick]
+                            #     cXs = cXs[pick]
+                            #     cYs = cYs[pick]
+                            #     degs = degs[pick]
+                            #     mons = mons[pick]
+                            #     chs = chs[pick]
+                            #     ekeys = ekeys[pick]
+                            #     olrmns = olrmns[pick]
 
                             ### Find sample
                             if sample == 'blon' or sample == 'blon2':
@@ -643,16 +644,20 @@ for r in range(len(runs)):
                             print 'Printing data for OLR means calculated here'
                             print cbmeans
 
+                            if which_olr=='calc':
+                                new_cbmeans=cbmeans
+                            elif which_olr=='store':
+                                new_cbmeans=smp_olrmns
+
                             # Adjust if thresh adjustment
                             if th_offset:
-                                cbmeans=cbmeans+thdiff
+                                new_cbmeans=new_cbmeans+thdiff
 
-                            # Collect this model's data for anova
-                            collect[cnt-1]=cbmeans
+                            collect[cnt-1]=new_cbmeans
                             print collect[cnt-1]
 
                             # Make boxplot
-                            plt.boxplot(cbmeans,positions=[cnt],notch=0,sym='+',vert=1,whis=1.5)
+                            plt.boxplot(new_cbmeans,positions=[cnt],notch=0,sym='+',vert=1,whis=1.5)
 
                             cnt +=1
                             modnames.append(name2)
@@ -702,6 +707,6 @@ for r in range(len(runs)):
                 if th_offset:
                     bit=bit+"th_offset"
 
-                compname= compdir + 'statsplot_test.'+globv+'.'+choosel[l]+'.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.'+bit+'.png'
+                compname= compdir + 'statsplot_test.'+globv+'.'+choosel[l]+'.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.'+bit+'.input_'+which_olr+'.png'
                 plt.savefig(compname, dpi=150)
                 plt.close()
