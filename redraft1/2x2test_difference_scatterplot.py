@@ -1,15 +1,11 @@
 # To test variation between model composites
-# using ANOVA and Kruskal-Wallis (non-parametric)
-# on regmean, with boxplots to show range
+# each model against the other models
+# on regmean, with scatterplots to show pvalue and test statistic
 # regmean is based on CB footprint
 
 # Aiming at variables which I want to plot as a contour
 # ctyp=abs
 # ctyp=anom_mon
-
-# METHOD 2 - previously I had done this by selecting the date and then the CB
-# looked quite wild and I think could be because some dates have more than one CB
-# so now let's extract them directly as I did originally
 
 
 import os
@@ -32,6 +28,7 @@ import MetBot.mytools as my
 import MetBot.mynetcdf as mync
 import MetBot.SynopticAnatomy as sy
 import MetBot.MetBlobs as blb
+import itertools
 
 
 import scipy
@@ -45,7 +42,7 @@ test_scr=False
 th_offset=False
 
 runs=['opt1']
-ctyps=['anom_seas'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
+ctyps=['abs','anom_seas'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
 spec_col=True
 varlist=['q']
@@ -90,9 +87,9 @@ bkdir=cwd+"/../../../CTdata/"
 thisdir=bkdir+"/hpaperplot/"
 botdir=bkdir+"metbot_multi_dset/"
 
-compdir=thisdir+"comp4paper_anova_reg/"
+compdir=thisdir+"comp4paper_2x2test_scatter/"
 if lag:
-    compdir=thisdir+"comp4paper_anova_reg_lags/"
+    compdir=thisdir+"comp4paper_2x2test_scatter_lags/"
 my.mkdir_p(compdir)
 
 # variable
@@ -156,10 +153,6 @@ for r in range(len(runs)):
             for lo in range(len(edays)):
                 print "Running with a lag of "+str(edays[lo])
 
-                # Set up plot
-                print "Setting up plot..."
-                plt.figure(figsize=[10, 5])
-
                 cnt = 1
                 modnames = []
 
@@ -212,7 +205,8 @@ for r in range(len(runs)):
                         mnames = mnames_tmp
 
                     if test_scr:
-                        nmod=1
+                        nmod=3
+                        nallmod=nmod
 
                     for mo in range(nmod):
                         name = mnames[mo]
@@ -656,9 +650,6 @@ for r in range(len(runs)):
                             collect[cnt-1]=new_cbmeans
                             print collect[cnt-1]
 
-                            # Make boxplot
-                            plt.boxplot(new_cbmeans,positions=[cnt],notch=0,sym='+',vert=1,whis=1.5)
-
                             cnt +=1
                             modnames.append(name2)
 
@@ -668,7 +659,7 @@ for r in range(len(runs)):
                             cnt += 1
                             modnames.append(name2)
 
-                # anova test
+                # tests
                 print "Sample data collected:"
                 print collect
                 print "Running ANOVA..."
@@ -685,28 +676,84 @@ for r in range(len(runs)):
                 print "p value is:"
                 print pval
 
-                # Finalise plot
-                print "Finalising plot..."
-                xposs = np.arange(1, cnt)
-                plt.xticks(xposs, modnames, rotation='vertical', fontsize='xx-small')
-                print 'Plotting xticks for modnames '
-                print modnames
-                print 'at positions ' + str(xposs)
-                plt.xlim(0, cnt)
-                print 'Plotting xlims from 0 to ' + str(cnt)
+
+                # Loop each combo and do test
+                modnums=np.arange(0,nallmod)
+
+                allcombos = [list(x) for x in itertools.combinations(modnums,2)]
+                ncombos=len(allcombos)
+
+                loopstats_u=np.zeros(ncombos,dtype=np.float32)
+                loopps_u=np.zeros(ncombos,dtype=np.float32)
+
+                loopstats_t=np.zeros(ncombos,dtype=np.float32)
+                loopps_t=np.zeros(ncombos,dtype=np.float32)
+
+                keynames=[]
+
+                for co in range(ncombos):
+                    thiscombo=allcombos[co]
+
+                    m1=thiscombo[0]
+                    m2=thiscombo[1]
+
+                    mname1=modnames[m1]
+                    mname2=modnames[m2]
+
+                    vals1=collect[m1]
+                    vals2=collect[m2]
+
+                    ustat, upval = scipy.stats.mannwhitneyu(vals1, vals2, alternative='two-sided')
+
+                    tstat, tpval = scipy.stats.ttest_ind(vals1, vals2)
+
+                    loopstats_u[co]=ustat
+                    loopps_u[co]=upval
+
+                    loopstats_t[co]=abs(tstat)
+                    loopps_t[co]=tpval
+
+                    keynames.append(mname1+'_'+mname2)
+
+                # Set up plot - mann whitney
+                print "Setting up plot..."
+                plt.figure(figsize=[10, 5])
+                plt.scatter(loopstats_u,loopps_u)
+
                 plt.subplots_adjust(left=0.05, right=0.95, bottom=0.2, top=0.95)
-                plt.title('Range of values for '+globv+'   ANOVA='+str(round(f,1))+' with p='+str(round(p,2))+'   K-W='+str(round(K,1))+' with p='+str(round(pval,2)))
+                plt.title('Test stats for '+globv+'   ANOVA='+str(round(f,1))+' with p='+str(round(p,2))+'   K-W='+str(round(K,1))+' with p='+str(round(pval,2)))
 
                 # Saving output plot
                 if test_scr:
                     mods='testmodels'
                 else:
                     mods='allmod'
-
                 bit=""
                 if th_offset:
                     bit=bit+"th_offset"
 
-                compname= compdir + 'statsplot_test.'+globv+'.'+choosel[l]+'.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.'+bit+'.input_'+which_olr+'.png'
+                compname= compdir + 'statsplot_test.mannw.'+globv+'.'+choosel[l]+'.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.'+bit+'.input_'+which_olr+'.png'
+                plt.savefig(compname, dpi=150)
+                plt.close()
+
+
+                # Set up plot - t-test
+                print "Setting up plot..."
+                plt.figure(figsize=[10, 5])
+                plt.scatter(loopstats_t,loopps_t)
+
+                plt.subplots_adjust(left=0.05, right=0.95, bottom=0.2, top=0.95)
+                plt.title('Test stats for '+globv+'   ANOVA='+str(round(f,1))+' with p='+str(round(p,2))+'   K-W='+str(round(K,1))+' with p='+str(round(pval,2)))
+
+                # Saving output plot
+                if test_scr:
+                    mods='testmodels'
+                else:
+                    mods='allmod'
+                bit=""
+                if th_offset:
+                    bit=bit+"th_offset"
+
+                compname= compdir + 'statsplot_test.t_test.'+globv+'.'+choosel[l]+'.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.'+bit+'.input_'+which_olr+'.png'
                 plt.savefig(compname, dpi=150)
                 plt.close()
