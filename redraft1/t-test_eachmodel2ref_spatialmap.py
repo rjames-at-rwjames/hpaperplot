@@ -26,18 +26,19 @@ import scipy
 
 ### Running options
 test_scr=False
+th_offset=False # should only run with OLR
 xplots = 4
 yplots = 7
 alphord=True
 runs=['opt1']
-ctyp='anom_seas' #anom_seas is rt seasonal mean
+ctyp='abs' #anom_seas is rt seasonal mean
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
 spec_col=True
-varlist=['omega']
+varlist=['q']
 thname='actual'
 levsel=True
 if levsel:
-    choosel=['500'] # can add a list
+    choosel=['850'] # can add a list
 else:
     choosel=['1']
 domain='swio'
@@ -51,7 +52,7 @@ elif domain=='nglob':
 elif domain=='mac_wave':
     sub='SASA'
     figdim=[9,9]
-lag=True
+lag=False
 if lag:
     edays=[-2,-1,0,1]
 else:
@@ -180,52 +181,58 @@ for r in range(len(runs)):
             this_nlat = len(lat)
             this_nlon = len(lon)
 
-            # Years for clim
-            year1 = float(ysclim[0:4])
-            year2 = float(ysclim[5:9])
+            if ctyp=='abs':
+                refdata=refsmp
+            elif ctyp=='anom_seas':
 
-            filend2 = ''
-            if interp == 'file':
-                filend2 = filend2 + '.remap_' + fileres
+                # Years for clim
+                year1 = float(ysclim[0:4])
+                year2 = float(ysclim[5:9])
 
-            # Open ltmonmean file
-            meanfile = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
-                       + name2 + '.' + globv + '.mon.mean.' + ysclim + filend2 + '.nc'
+                filend2 = ''
+                if interp == 'file':
+                    filend2 = filend2 + '.remap_' + fileres
 
-            print 'Opening climatology file for reference'
-            print meanfile
+                # Open ltmonmean file
+                meanfile = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
+                           + name2 + '.' + globv + '.mon.mean.' + ysclim + filend2 + '.nc'
 
-            if levsel:
-                ncout = mync.open_multi(meanfile, globv, name2, \
-                                        dataset=dset2, subs=sub, levsel=levc)
-            else:
-                ncout = mync.open_multi(meanfile, globv, name2, \
-                                        dataset=dset2, subs=sub)
-            print '...file opened'
-            ndim = len(ncout)
-            if ndim == 5:
-                refmean, time, lat, lon, dtime = ncout
-            elif ndim == 6:
-                refmean, time, lat, lon, lev, dtime = ncout
-                refmean = np.squeeze(refmean)
-            else:
-                print 'Check number of dims in ncfile'
-            dtime[:, 3] = 0
+                print 'Opening climatology file for reference'
+                print meanfile
 
-            # get seasonal mean
-            print 'Calculating seasonal mean for reference'
-            thesemons = np.zeros((nmon, this_nlat, this_nlon), dtype=np.float32)
-            for zz in range(len(mons)):
-                thesemons[zz, :, :] = refmean[mons[zz] - 1, :, :]
-            refseasmean = np.nanmean(thesemons, 0)
+                if levsel:
+                    ncout = mync.open_multi(meanfile, globv, name2, \
+                                            dataset=dset2, subs=sub, levsel=levc)
+                else:
+                    ncout = mync.open_multi(meanfile, globv, name2, \
+                                            dataset=dset2, subs=sub)
+                print '...file opened'
+                ndim = len(ncout)
+                if ndim == 5:
+                    refmean, time, lat, lon, dtime = ncout
+                elif ndim == 6:
+                    refmean, time, lat, lon, lev, dtime = ncout
+                    refmean = np.squeeze(refmean)
+                else:
+                    print 'Check number of dims in ncfile'
+                dtime[:, 3] = 0
 
-            print 'Calculating anomalies for reference'
-            refanoms = np.asarray([refsmp[x, :, :] - refseasmean for x in range(len(refsmp[:, 0, 0]))])
+                # get seasonal mean
+                print 'Calculating seasonal mean for reference'
+                thesemons = np.zeros((nmon, this_nlat, this_nlon), dtype=np.float32)
+                for zz in range(len(mons)):
+                    thesemons[zz, :, :] = refmean[mons[zz] - 1, :, :]
+                refseasmean = np.nanmean(thesemons, 0)
+
+                print 'Calculating anomalies for reference'
+                refanoms = np.asarray([refsmp[x, :, :] - refseasmean for x in range(len(refsmp[:, 0, 0]))])
+
+                refdata=refanoms
 
             # Flip lats if ncep2
             if name2=='ncep2':
                 lat = lat[::-1]
-                refanoms = refanoms[:, ::-1, :]
+                refdata = refdata[:, ::-1, :]
 
             # Open plotting
             print 'Setting up plot before looping models'
@@ -305,6 +312,19 @@ for r in range(len(runs)):
                     year1 = float(ysclim[0:4])
                     year2 = float(ysclim[5:9])
 
+                    # Getting threshold
+                    print 'getting threshold....'
+                    threshtxt = botdir + 'thresholds.fmin.all_dset.txt'
+                    with open(threshtxt) as f:
+                        for line in f:
+                            if dset + '\t' + name in line:
+                                thresh = line.split()[2]
+                                print 'thresh=' + str(thresh)
+                    thresh = int(thresh)
+                    thre_str = str(thresh)
+
+                    thdiff = 243.0 - float(thresh)
+
                     # Open sample file
                     inpath = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/'
                     filend = ''
@@ -361,59 +381,68 @@ for r in range(len(runs)):
                         nlat = len(lat)
                         nlon = len(lon)
 
-                        filend2 = ''
-                        if interp == 'file':
-                            filend2 = filend2 + '.remap_' + fileres
+                        if ctyp=='abs':
+                            modata=smpdata
+                        elif ctyp=='anom_seas':
 
-                        # Open ltmonmean file
-                        meanfile = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
-                                   + name2 + '.' + globv + '.mon.mean.' + ysclim + filend2 + '.nc'
+                            filend2 = ''
+                            if interp == 'file':
+                                filend2 = filend2 + '.remap_' + fileres
 
-                        print 'Opening climatology file for model'
-                        print 'Opening ' + meanfile
+                            # Open ltmonmean file
+                            meanfile = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/' \
+                                       + name2 + '.' + globv + '.mon.mean.' + ysclim + filend2 + '.nc'
 
-                        if levsel:
-                            ncout = mync.open_multi(meanfile, globv, name2, \
-                                                    dataset=dset2, subs=sub, levsel=levc)
-                        else:
-                            ncout = mync.open_multi(meanfile, globv, name2, \
-                                                    dataset=dset2, subs=sub)
-                        print '...file opened'
-                        ndim = len(ncout)
-                        if ndim == 5:
-                            meandata, time, lat, lon, dtime = ncout
-                        elif ndim == 6:
-                            meandata, time, lat, lon, lev, dtime = ncout
-                            meandata = np.squeeze(meandata)
-                        else:
-                            print 'Check number of dims in ncfile'
-                        dtime[:, 3] = 0
+                            print 'Opening climatology file for model'
+                            print 'Opening ' + meanfile
 
-                        # Fix lat and lons if it spans 0
-                        if domain == 'mac_wave' or domain == 'bigtrop':
-                            print "Ammending lons around 0"
-                            for i in range(len(lon)):
-                                if lon[i] > 180:
-                                    lon[i] = lon[i] - 360
-                            ord = np.argsort(lon)
-                            lon = lon[ord]
-                            meandata = meandata[:, :, ord]
+                            if levsel:
+                                ncout = mync.open_multi(meanfile, globv, name2, \
+                                                        dataset=dset2, subs=sub, levsel=levc)
+                            else:
+                                ncout = mync.open_multi(meanfile, globv, name2, \
+                                                        dataset=dset2, subs=sub)
+                            print '...file opened'
+                            ndim = len(ncout)
+                            if ndim == 5:
+                                meandata, time, lat, lon, dtime = ncout
+                            elif ndim == 6:
+                                meandata, time, lat, lon, lev, dtime = ncout
+                                meandata = np.squeeze(meandata)
+                            else:
+                                print 'Check number of dims in ncfile'
+                            dtime[:, 3] = 0
 
-                        # Remove duplicate timesteps
-                        print 'Checking for duplicate timesteps'
-                        tmp = np.ascontiguousarray(dtime).view(
-                            np.dtype((np.void, dtime.dtype.itemsize * dtime.shape[1])))
-                        _, idx = np.unique(tmp, return_index=True)
-                        dtime = dtime[idx]
-                        meandata = meandata[idx, :, :]
+                            # Fix lat and lons if it spans 0
+                            if domain == 'mac_wave' or domain == 'bigtrop':
+                                print "Ammending lons around 0"
+                                for i in range(len(lon)):
+                                    if lon[i] > 180:
+                                        lon[i] = lon[i] - 360
+                                ord = np.argsort(lon)
+                                lon = lon[ord]
+                                meandata = meandata[:, :, ord]
 
-                        # get seasonal mean
-                        thesemons = np.zeros((nmon, this_nlat, this_nlon), dtype=np.float32)
-                        for zz in range(len(mons)):
-                            thesemons[zz, :, :] = meandata[mons[zz] - 1, :, :]
-                        seasmean = np.nanmean(thesemons, 0)
+                            # Remove duplicate timesteps
+                            print 'Checking for duplicate timesteps'
+                            tmp = np.ascontiguousarray(dtime).view(
+                                np.dtype((np.void, dtime.dtype.itemsize * dtime.shape[1])))
+                            _, idx = np.unique(tmp, return_index=True)
+                            dtime = dtime[idx]
+                            meandata = meandata[idx, :, :]
 
-                        anoms = np.asarray([smpdata[x, :, :] - seasmean for x in range(len(smpdata[:, 0, 0]))])
+                            # get seasonal mean
+                            thesemons = np.zeros((nmon, this_nlat, this_nlon), dtype=np.float32)
+                            for zz in range(len(mons)):
+                                thesemons[zz, :, :] = meandata[mons[zz] - 1, :, :]
+                            seasmean = np.nanmean(thesemons, 0)
+
+                            anoms = np.asarray([smpdata[x, :, :] - seasmean for x in range(len(smpdata[:, 0, 0]))])
+
+                            modata=anoms
+
+                        if th_offset:
+                            modata = modata + thdiff
 
                         # Test difference between this model and reference
                         print 'Starting test between '+name2+' and reference'
@@ -423,8 +452,8 @@ for r in range(len(runs)):
                         for i in range(nlat):
                             for j in range(nlon):
 
-                                refbox = refanoms[:, i, j]
-                                modbox = anoms[:, i, j]
+                                refbox = refdata[:, i, j]
+                                modbox = modata[:, i, j]
 
                                 if difftest=='mannw':
                                     # mann test
@@ -489,15 +518,20 @@ for r in range(len(runs)):
                         # Get lon lat grid
                         plon, plat = np.meshgrid(lon, lat)
 
-                        anom_comp = np.nanmean(anoms, 0)
+                        modata_comp = np.nanmean(modata, 0)
 
                         # Plot
                         print "Plotting for model "+name2
                         plt.subplot(yplots,xplots,cnt)
                         if spec_col:
                             if globv == 'olr':
-                                clevs= np.arange(-40,50,10)
-                                cm = plt.cm.BrBG_r
+                                if ctyp=='anom_seas':
+                                    clevs= np.arange(-40,50,10)
+                                    cm = plt.cm.BrBG_r
+                                elif ctyp=='abs':
+                                    clevs = np.arange(200, 280, 10)
+                                    # cm = plt.cm.gray_r
+                                    cm = plt.cm.Wistia_r
                             elif globv=='pr':
                                 clevs = np.arange(-12,14, 2)
                                 cm = plt.cm.bwr_r
@@ -510,9 +544,9 @@ for r in range(len(runs)):
                             elif globv == 'gpth':
                                 clevs = np.arange(-60, 65, 5)
                                 cm = plt.cm.PiYG_r
-                            cs = m.contourf(plon, plat, anom_comp, clevs, cmap=cm, extend='both')
+                            cs = m.contourf(plon, plat, modata_comp, clevs, cmap=cm, extend='both')
                         else:
-                            cs = m.contourf(plon, plat, anom_comp, extend='both')
+                            cs = m.contourf(plon, plat, modata_comp, extend='both')
                         hatch = m.contourf(plon,plat,mask_pvals,levels=[-1.0, 0.0, 1.0], hatches=["", '.'], alpha=0)
 
                         plt.title(name2,fontsize=8,fontweight='demibold')
@@ -547,6 +581,9 @@ for r in range(len(runs)):
                     cstr=cstr+'.fdr_'+str(alphaFDR)
                 else:
                     cstr=cstr+'.pval_'+str(specp)
+
+                if th_offset:
+                    cstr=cstr+'.th_offset'
 
                 if lag:
                     compname = compdir + 'multi_comp_' + cstr + '.'+difftest+'.' + sample + '.' + type + '.' + globv + \

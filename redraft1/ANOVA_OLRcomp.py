@@ -32,18 +32,19 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 ### Running options
 first_test=False
 test_scr=False
+th_offset=False
 remove_outliers=True
 howmany='many' # 'two' or 'many'
 
 runs=['opt1']
-ctyps=['anom_seas'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
+ctyps=['abs'] #abs is absolute,  anom_mon is rt monthly mean, anom_seas is rt seasonal mean
 wcb=['cont'] # which cloud band composite? Options: cont, mada, dbl
 spec_col=True
-varlist=['olr']
+varlist=['u','v']
 thname='actual'
-levsel=False
+levsel=True
 if levsel:
-    choosel=['500'] # can add a list
+    choosel=['200'] # can add a list
 else:
     choosel=['1']
 domain='swio'
@@ -226,7 +227,18 @@ for v in range(len(varlist)):
                                     else:
                                         ys = moddct['fullrun']
 
+                                # Getting threshold
+                                print 'getting threshold....'
+                                threshtxt = botdir + 'thresholds.fmin.all_dset.txt'
+                                with open(threshtxt) as f:
+                                    for line in f:
+                                        if dset + '\t' + name in line:
+                                            thresh = line.split()[2]
+                                            print 'thresh=' + str(thresh)
+                                thresh = int(thresh)
+                                thre_str = str(thresh)
 
+                                thdiff = 243.0 - float(thresh)
 
                                 # Open sample file
                                 inpath=bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + '/'
@@ -378,6 +390,9 @@ for v in range(len(varlist)):
                                     else:
                                         prodata=chosedata
 
+                                    if th_offset:
+                                        prodata = prodata + thdiff
+
                                     # Check smpdata
                                     #print 'Checking data'
                                     #print smpdata
@@ -483,6 +498,10 @@ for v in range(len(varlist)):
                     else:
                         mods='allmod'
 
-                    compname= compdir + 'statsplot_test.'+globv+'.'+choosel[l]+'.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.png'
+                    bit = ""
+                    if th_offset:
+                        bit = bit + "th_offset."
+
+                    compname= compdir + 'statsplot_test.'+globv+'.'+choosel[l]+'.'+ctyp+'.interp_'+interp+'_'+str(res)+'.models_'+mods+'.'+bit+'png'
                     plt.savefig(compname, dpi=150)
                     plt.close()

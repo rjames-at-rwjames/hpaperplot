@@ -23,9 +23,9 @@ cenlatplot=False
 angleplot=False
 monplot=False
 
-scatter_lon_angle=True
+scatter_lon_angle=False
 scatter_lat_angle=False
-scatter_lon_lat=False
+scatter_lon_lat=True
 
 scatter_lon_mon=False
 scatter_lat_mon=False
@@ -35,7 +35,7 @@ one_seas=True
 seas_pick='NDJFM'
 from_event='first' # first or all (all just uses refmbt)
 
-show_sample=True
+show_sample=False
 show_cont_sample=True
 show_mada_sample=True
 sample='blon2'
@@ -49,9 +49,10 @@ xplots = 4
 yplots = 7
 totsize=[9, 12]
 
+test_scr=True
 testyear=False  # plot based on 1 year of test data
 testfile=False
-threshtest=True # Option to run on thresholds + and - 5Wm2 as a test
+threshtest=False # Option to run on thresholds + and - 5Wm2 as a test
 monthstr = ['Aug', 'Sept', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']
 
 if group:
@@ -163,6 +164,9 @@ for t in range(nthresh):
     dsetnames = ['noaa', 'cmip5']
     ndstr = str(ndset)
 
+    if test_scr:
+        ndset=1
+
     print "Looping datasets"
     for d in range(ndset):
         dset = dsetnames[d]
@@ -192,6 +196,9 @@ for t in range(nthresh):
                 mnames = mnames_tmp
         else:
             mnames = mnames_tmp
+
+        if test_scr:
+            nmod=1
 
         for mo in range(nmod):
             name = mnames[mo]
@@ -681,6 +688,9 @@ for t in range(nthresh):
                             print 'LESS THAN 50 CLOUDBANDS SAMPLED'
                             exit()
 
+            else:
+                tag=''
+
             print "Plotting for model " + name
 
             if cenlonplot:
@@ -828,6 +838,8 @@ for t in range(nthresh):
         namesup=namesup+"_"+sample
     if group:
         namesup=namesup+"_grouped"
+    if test_scr:
+        namesup=namesup+"_testmodels"
 
     ### Save figure
     if cenlonplot:

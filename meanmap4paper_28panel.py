@@ -36,14 +36,14 @@ spec_col=True
 bias=False
 biasper=False
 group=True
-varlist=['olr']
+varlist=['pr']
 levsel=False
 #levsel=False
 if levsel:
     choosel=['700'] # can add a list
 else:
     choosel=['1']
-domain='aftrop'
+domain='swio'
 if domain=='polar':
     sub='SH'
 elif domain=='swio':

@@ -32,16 +32,21 @@ import MetBot.MetBlobs as blb
 
 
 ### Running options
-test_scr=False
+test_scr=True
 cb_test=False # start by just plotting one CB
 
-plotshow='greyall' # 'greyall' or 'col5'
+plotshow='col5' # 'greyall' or 'col5'
+which_cbs='any' # 'any' is any
+                # 'sample' is sample
 
 xplots = 4
 yplots = 7
 
 runs=['opt1']
-wcb=['cont','mada'] # which cloud band composite? Options: cont, mada, dbl
+if which_cbs=='sample':
+    wcb=['cont','mada'] # which cloud band composite? Options: cont, mada, dbl
+else:
+    wcb=['cont']
 thname='actual'
 alphord=True
 domain='swio'
@@ -325,8 +330,7 @@ for r in range(len(runs)):
                 #     mons = mons[pick]
                 #     chs = chs[pick]
 
-                ### Find sample
-                if sample == 'blon' or sample == 'blon2':
+                if which_cbs=='any':
                     tmp_edts = []
                     tmp_cXs = []
                     tmp_cYs = []
@@ -342,20 +346,14 @@ for r in range(len(runs)):
                         deg = degs[b]
                         ch = chs[b]
 
-                        # Check on the latitude of centroid
-                        if cY > s_cen[sind] and cY < n_cen[sind]:
-
-                            # Check on the angle
-                            if deg > t_ang[sind] and deg < b_ang[sind]:
-
-                                # Check on the month
-                                if mon >= f_seas[sind] or mon <= l_seas[sind]:
-                                    tmp_edts.append(date)
-                                    tmp_cXs.append(cX)
-                                    tmp_cYs.append(cY)
-                                    tmp_degs.append(deg)
-                                    tmp_mons.append(mon)
-                                    tmp_chs.append(ch)
+                        # Check on the month
+                        if mon >= f_seas[sind] or mon <= l_seas[sind]:
+                            tmp_edts.append(date)
+                            tmp_cXs.append(cX)
+                            tmp_cYs.append(cY)
+                            tmp_degs.append(deg)
+                            tmp_mons.append(mon)
+                            tmp_chs.append(ch)
 
                     tmp_edts = np.asarray(tmp_edts)
                     tmp_cXs = np.asarray(tmp_cXs)
@@ -363,35 +361,80 @@ for r in range(len(runs)):
                     tmp_degs = np.asarray(tmp_degs)
                     tmp_mons = np.asarray(tmp_mons)
                     tmp_chs = np.asarray(tmp_chs)
-                    print 'Shortlist of ' + str(len(tmp_edts)) + ' continental cloudbands'
 
-                    # Get the 50 closest to best_lon
-                    dists = best_lon[sind] - tmp_cXs
-                    abs_dists = np.absolute(dists)
-                    inds = np.argsort(abs_dists)
-                    dists_sort = abs_dists[inds]
-                    first50_ind = inds[0:ndays[0]]
+                elif which_cbs=='sample':
 
-                    smp_cXs = tmp_cXs[first50_ind]
-                    smp_cYs = tmp_cYs[first50_ind]
-                    smp_edts = tmp_edts[first50_ind]
-                    smp_degs = tmp_degs[first50_ind]
-                    smp_mons = tmp_mons[first50_ind]
-                    smp_chs = tmp_chs[first50_ind]
-                    print 'Sampled ' + str(len(smp_cXs)) + ' cloudbands'
-                    if len(smp_cXs) < 50:
-                        print 'LESS THAN 50 CLOUDBANDS SAMPLED'
-                        tag = ' ONLY_' + str(len(smp_cXs))
-                    else:
-                        tag = ''
+                    ### Find sample
+                    if sample == 'blon' or sample == 'blon2':
+                        tmp_edts = []
+                        tmp_cXs = []
+                        tmp_cYs = []
+                        tmp_degs = []
+                        tmp_mons = []
+                        tmp_chs = []
 
+                        for b in range(len(edts)):
+                            date = edts[b]
+                            mon = mons[b]
+                            cX = cXs[b]
+                            cY = cYs[b]
+                            deg = degs[b]
+                            ch = chs[b]
+
+                            # Check on the latitude of centroid
+                            if cY > s_cen[sind] and cY < n_cen[sind]:
+
+                                # Check on the angle
+                                if deg > t_ang[sind] and deg < b_ang[sind]:
+
+                                    # Check on the month
+                                    if mon >= f_seas[sind] or mon <= l_seas[sind]:
+                                        tmp_edts.append(date)
+                                        tmp_cXs.append(cX)
+                                        tmp_cYs.append(cY)
+                                        tmp_degs.append(deg)
+                                        tmp_mons.append(mon)
+                                        tmp_chs.append(ch)
+
+                        tmp_edts = np.asarray(tmp_edts)
+                        tmp_cXs = np.asarray(tmp_cXs)
+                        tmp_cYs = np.asarray(tmp_cYs)
+                        tmp_degs = np.asarray(tmp_degs)
+                        tmp_mons = np.asarray(tmp_mons)
+                        tmp_chs = np.asarray(tmp_chs)
+                        print 'Shortlist of ' + str(len(tmp_edts)) + ' continental cloudbands'
+
+                        # Get the 50 closest to best_lon
+                        dists = best_lon[sind] - tmp_cXs
+                        abs_dists = np.absolute(dists)
+                        inds = np.argsort(abs_dists)
+                        dists_sort = abs_dists[inds]
+                        first50_ind = inds[0:ndays[0]]
+
+                        smp_cXs = tmp_cXs[first50_ind]
+                        smp_cYs = tmp_cYs[first50_ind]
+                        smp_edts = tmp_edts[first50_ind]
+                        smp_degs = tmp_degs[first50_ind]
+                        smp_mons = tmp_mons[first50_ind]
+                        smp_chs = tmp_chs[first50_ind]
+                        print 'Sampled ' + str(len(smp_cXs)) + ' cloudbands'
+                        if len(smp_cXs) < 50:
+                            print 'LESS THAN 50 CLOUDBANDS SAMPLED'
+                            tag = ' ONLY_' + str(len(smp_cXs))
+                        else:
+                            tag = ''
+
+                if which_cbs=='any':
+                    cb4plot=tmp_chs
+                elif which_cbs=='sample':
+                    cb4plot=smp_chs
 
                 # Make a map
                 plt.subplot(yplots, xplots, cnt)
                 print 'Generating map'
                 m, mfig = pt.AfrBasemap(lat, lon, drawstuff=True, prj='cyl', fno=1, rsltn='l')
 
-                nch=len(smp_chs)
+                nch=len(cb4plot)
                 if plotshow=='col5':
                     nch=5
                     cols = ['r', 'b', 'c', 'm', 'g', 'r', 'b', 'c', 'm', 'g']
@@ -400,7 +443,7 @@ for r in range(len(runs)):
 
                 print 'Looping sample days and plotting CB outlines'
                 for jl in range(nch):
-                    cb=smp_chs[jl]
+                    cb=cb4plot[jl+4]
                     if plotshow=='greyall':
                         cl='darkgray'
                     else:
@@ -430,7 +473,9 @@ for r in range(len(runs)):
         end=''
         if cb_test:
             end='_test.'
+        if which_cbs=='sample':
+            end=end+'_sample_'+type+'.'
 
-        compname= plotdir + 'cb_outlines_plot.method2.'+plotshow+'.sample_'+type+'.'+globv+'.models_'+mods+'.'+end+'png'
+        compname= plotdir + 'cb_outlines_plot.'+which_cbs+'.method2.'+plotshow+'.'+globv+'.models_'+mods+'.'+end+'png'
         plt.savefig(compname, dpi=150)
         plt.close()

@@ -61,7 +61,7 @@ if aspect=='rain':
         #           - will be highest for models with most intense ttt rain regardness of nTTT
         # perc75 - the 75th percentile of mean rain per CB
 elif aspect=='count':
-    relative = True
+relative = True
     per='year' # TTTs per year
     wh_count = 'blob'  # blob or event
 clon1=7.5

@@ -30,7 +30,7 @@ import dsets_mplot_5group_4plot as dset_mp
 ### Running options
 inorder=True    # to put the bars in order of number of TTTs
 numlab=False     # to include number of TTTs in the yaxis label
-threshtest=True # Option to run on thresholds + and - 5Wm2 as a test
+threshtest=False # Option to run on thresholds + and - 5Wm2 as a test
 group=True
 
 weightlats=True
@@ -41,10 +41,10 @@ weightlats=True
 seas='NDJFM'
 
 # # Part b
-aspect='count' # count or rain
+aspect='rain' # count or rain
 if aspect=='rain':
     under_of='dayof'
-    sub_y='ALL_PR'
+    sub_y='contsub_nh'
     wh_count='event'
     raintype='rainperttt'
         # totrain - gets an ave of rain under each CB and then adds all these aves
@@ -57,7 +57,7 @@ elif aspect=='count':
     per='year' # TTTs per year
     wh_count = 'blob'  # blob or event
 clon1=7.5
-clon2=55.0
+clon2=100.0
 
 
 # Part c
@@ -499,6 +499,9 @@ for t in range(nthresh):
 
 
     val=yvals[:]
+
+    print 'Values to output'
+    print val
 
     # Open text file for results
     file = open(figdir+'txtout.seas_'+seas+'.TTT'+aspect+'.'\

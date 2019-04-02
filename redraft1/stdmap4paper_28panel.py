@@ -14,6 +14,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.basemap import cm
+import scipy.stats
 import scipy.interpolate as spi
 
 cwd=os.getcwd()
@@ -28,11 +29,19 @@ import MetBot.mast_dset_dict as mast_dict
 import MetBot.dimensions_dict as dim_exdict
 import MetBot.mytools as my
 import MetBot.mynetcdf as mync
+import MetBot.MetBlobs as blb
 
 ### Running options
 xplots = 4
 yplots = 7
-seas='DJF'
+whichdays='cbonly' # 'all' for all days in period
+                    # 'cbonly' for only days with flagged cbs
+                    # use different input netcdf files
+whichstat='cvper' # 'std' - standard deviation
+                # 'cv' - coefficient of variation
+                # 'cvper' - coefficient of variation as a percentage
+test_scr=True
+seas='NDJFM'
 spec_col=True
 bias=False
 biasper=False
@@ -118,6 +127,9 @@ ndset=len(dset_mp.dset_deets)
 dsetnames=['noaa','cmip5']
 ndstr=str(ndset)
 
+if test_scr:
+    ndset = 1
+
 print "Looping datasets"
 for d in range(ndset):
     dset=dsetnames[d]
@@ -148,6 +160,9 @@ for d in range(ndset):
             mnames = mnames_tmp
     else:
         mnames = mnames_tmp
+
+    if test_scr:
+        nmod = 1
 
     for mo in range(nmod):
         name = mnames[mo]
@@ -201,11 +216,12 @@ for d in range(ndset):
 
         # Open file
         allfile = bkdir + 'metbot_multi_dset/' + dset2 + '/' + name2 + \
-                   '.' + globv + '.day.mean.' + ys + '.nc'
+               '.' + globv + '.day.mean.' + ys + '.nc'
+
+        print 'Attempting to open '
+        print allfile
 
         if os.path.exists(allfile):
-
-            print 'Opening ' + allfile
 
             if levsel:
                 ncout = mync.open_multi(allfile, globv, name2, \
@@ -249,6 +265,47 @@ for d in range(ndset):
         nlat=len(lat)
         nlon=len(lon)
 
+        # Select only days with flagged CBs
+        if whichdays=='cbonly':
+            # Select dates with TTCBs only
+            threshtxt = botdir + 'thresholds.fmin.all_dset.txt'
+            print threshtxt
+            with open(threshtxt) as f:
+                for line in f:
+                    if dset + '\t' + name in line:
+                        thresh = line.split()[2]
+                        print 'thresh=' + str(thresh)
+
+            thresh = int(thresh)
+            thisthresh = thresh
+            thre_str = str(int(thisthresh))
+
+            ###  Open mbs file
+            sydir = botdir + dset + '/' + name + '/'
+            sysuf = sydir + name + '_'
+            mbsfile = sysuf + thre_str + '_' + dset + "-olr-0-0.mbs"
+            refmbs, refmbt, refch = blb.mbopen(mbsfile)
+            refmbt[:, 3] = 0
+
+            # Find indices from var file
+            indices_m1 = []
+            for e in range(len(refmbt)):
+                date = refmbt[e]
+
+                ix = my.ixdtimes(dtime, [date[0]], [date[1]], [date[2]], [0])
+                if len(ix) >= 1:
+                    indices_m1.append(ix)
+
+            indices_m1 = np.squeeze(np.asarray(indices_m1))
+
+            # Select these dates
+            alldata = alldata[indices_m1, :, :]
+            dtime = dtime[indices_m1]
+
+        elif whichdays=='all':
+            alldata=alldata[:]
+            dtime=dtime[:]
+
         # Select seasons
         inds = []
         moncnt=1
@@ -265,45 +322,63 @@ for d in range(ndset):
         # Get standard deviation
         stdmap=np.nanstd(thesemonsdata,0)
 
+        # Get coefficient of variation
+        cvmap=scipy.stats.variation(thesemonsdata,0, nan_policy='omit')
+
+        # Get CV as percentage
+        cvpermap=cvmap*100
+
         if cnt == 1:
             m, f = pt.AfrBasemap(lat, lon, drawstuff=True, prj='cyl', fno=1, rsltn='l')
 
         # Get lon lat grid
         plon, plat = np.meshgrid(lon, lat)
 
-        data4plot=stdmap
-
+        if whichstat=='std':
+            data4plot=stdmap
+        elif whichstat=='cv':
+            data4plot=cvmap
+        elif whichstat=='cvper':
+            data4plot=cvpermap
 
         # Plot
         print "Plotting for model "+name2
         plt.subplot(yplots,xplots,cnt)
         if spec_col:
-            if globv == 'olr':
-                clevs = np.arange(0,50,5)
-                cm = plt.cm.viridis
-            elif globv=='omega':
-                if choosel[l]=='500':
-                    clevs = np.arange(-0.10, 0.11, 0.01)
-                elif choosel[l]=='200':
-                    clevs = np.arange(-0.08, 0.088, 0.008)
-                elif choosel[l]=='700':
-                    clevs = np.arange(-0.10, 0.11, 0.01)
-                cm = plt.cm.bwr
-            elif globv=='pr':
-                if bias:
-                    if cnt==1:
-                        clevs = np.arange(0,16,2)
-                        cm = plt.cm.magma
-                    else:
-                        if biasper:
-                            clevs= np.arange(-100.0,120.0,20)
+            if whichstat=='cvper':
+                if globv=='olr':
+                    clevs=np.arange(0,20,2)
+                    cm = plt.cm.RdPu
+                elif globv=='pr':
+                    clevs=np.arange(0,400,25)
+                    cm = plt.cm.viridis
+            else:
+                if globv == 'olr':
+                    clevs = np.arange(0,50,5)
+                    cm = plt.cm.viridis
+                elif globv=='omega':
+                    if choosel[l]=='500':
+                        clevs = np.arange(-0.10, 0.11, 0.01)
+                    elif choosel[l]=='200':
+                        clevs = np.arange(-0.08, 0.088, 0.008)
+                    elif choosel[l]=='700':
+                        clevs = np.arange(-0.10, 0.11, 0.01)
+                    cm = plt.cm.bwr
+                elif globv=='pr':
+                    if bias:
+                        if cnt==1:
+                            clevs = np.arange(0,16,2)
+                            cm = plt.cm.magma
                         else:
-                            clevs= np.arange(-6.0,7.0,1)
-                        cm = plt.cm.bwr_r
-                else:
-                    clevs = np.arange(0, 16, 2)
-                    #cm = plt.cm.YlGnBu
-                    cm = plt.cm.magma
+                            if biasper:
+                                clevs= np.arange(-100.0,120.0,20)
+                            else:
+                                clevs= np.arange(-6.0,7.0,1)
+                            cm = plt.cm.bwr_r
+                    else:
+                        clevs = np.arange(0, 16, 2)
+                        #cm = plt.cm.YlGnBu
+                        cm = plt.cm.magma
             cs = m.contourf(plon, plat, data4plot, clevs, cmap=cm, extend='both')
         else:
             cs = m.contourf(plon, plat, data4plot, extend='both')
@@ -330,9 +405,11 @@ my.ytickfonts(fontsize=12.)
 figsuf=''
 if group:
     figsuf=figsuf+'_grouped.'
+if test_scr:
+    figsuf=figsuf+'_testmodels'
 
-figname = figdir + 'multi_model_stdmap.'+figsuf + globv + \
-          '.'+choosel[l]+'.'+sub+'.'+seas+'.png'
+figname = figdir + 'multi_model_'+whichstat+'.'+figsuf + globv + \
+          '.'+choosel[l]+'.'+sub+'.'+seas+'.'+whichdays+'.png'
 print 'saving figure as '+figname
 plt.savefig(figname, dpi=150)
 plt.close()
