@@ -1,3 +1,5 @@
 Hi this is Rachel I am making a test of the push / pull
 
 Now I am editing on github
+
+Now I am editing from login1 machine
